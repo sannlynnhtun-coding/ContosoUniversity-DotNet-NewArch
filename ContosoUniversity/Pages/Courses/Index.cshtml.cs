@@ -39,25 +39,18 @@ public class Index : PageModel
 
     public class MappingProfile : Profile
     {
-        public MappingProfile() => CreateProjection<Course, Result.Course>();
+        public MappingProfile() 
+            => CreateProjection<Course, Result.Course>();
     }
 
-    public class QueryHandler : IRequestHandler<Query, Result>
+    public class QueryHandler(SchoolContext db, IConfigurationProvider configuration) 
+        : IRequestHandler<Query, Result>
     {
-        private readonly SchoolContext _db;
-        private readonly IConfigurationProvider _configuration;
-
-        public QueryHandler(SchoolContext db, IConfigurationProvider configuration)
-        {
-            _db = db;
-            _configuration = configuration;
-        }
-
         public async Task<Result> Handle(Query message, CancellationToken token)
         {
-            var courses = await _db.Courses
+            var courses = await db.Courses
                 .OrderBy(d => d.Id)
-                .ProjectToListAsync<Result.Course>(_configuration);
+                .ProjectToListAsync<Result.Course>(configuration);
 
             return new Result
             {
