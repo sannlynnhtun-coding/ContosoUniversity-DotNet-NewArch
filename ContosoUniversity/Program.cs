@@ -13,9 +13,13 @@ using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 RegisterServices(builder);
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 ConfigureApplication(app);
 
@@ -28,11 +32,11 @@ static void RegisterServices(WebApplicationBuilder builder)
     services.AddMiniProfiler().AddEntityFramework();
 
     services.AddDbContext<SchoolContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(builder.Configuration.GetConnectionString("contosouniversity")));
 
-    services.AddAutoMapper(typeof(Program));
+    services.AddAutoMapper(_ => { }, typeof(Program));
 
-    services.AddMediatR(typeof(Program));
+    services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
 
     services.AddHtmlTags(new TagConventions());
 

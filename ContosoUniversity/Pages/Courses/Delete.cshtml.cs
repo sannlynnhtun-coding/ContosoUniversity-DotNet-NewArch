@@ -85,13 +85,11 @@ public class Delete : PageModel
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command message, CancellationToken token)
+        public async Task Handle(Command message, CancellationToken token)
         {
             var course = await _db.Courses.FindAsync(message.Id);
 
             _db.Courses.Remove(course);
-
-            return default;
         }
     }
 }

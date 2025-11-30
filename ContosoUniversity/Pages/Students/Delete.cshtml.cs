@@ -75,11 +75,9 @@ public class Delete : PageModel
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command message, CancellationToken token)
+        public async Task Handle(Command message, CancellationToken token)
         {
             _db.Students.Remove(await _db.Students.FindAsync(message.Id));
-
-            return default;
         }
     }
 

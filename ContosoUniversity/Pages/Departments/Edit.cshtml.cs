@@ -93,7 +93,7 @@ public class Edit : PageModel
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command message, 
+        public async Task Handle(Command message, 
             CancellationToken token)
         {
             var dept = await _db.Departments.FindAsync(message.Id);
@@ -103,8 +103,6 @@ public class Edit : PageModel
             dept.Budget = message.Budget!.Value;
             dept.RowVersion = message.RowVersion;
             dept.Administrator = await _db.Instructors.FindAsync(message.Administrator.Id);
-
-            return default;
         }
     }
 }

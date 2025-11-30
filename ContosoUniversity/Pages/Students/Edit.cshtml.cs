@@ -96,15 +96,13 @@ public class Edit : PageModel
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command message, CancellationToken token)
+        public async Task Handle(Command message, CancellationToken token)
         {
             var student = await _db.Students.FindAsync(message.Id);
 
             student.FirstMidName = message.FirstMidName;
             student.LastName = message.LastName;
             student.EnrollmentDate = message.EnrollmentDate!.Value;
-
-            return default;
         }
     }
 }

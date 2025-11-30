@@ -86,21 +86,19 @@ public class Edit : PageModel
         }
     }
 
-    public class CommandHandler : IRequestHandler<Command, Unit>
+    public class CommandHandler : IRequestHandler<Command>
     {
         private readonly SchoolContext _db;
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command request, CancellationToken cancellationToken)
+        public async Task Handle(Command request, CancellationToken cancellationToken)
         {
             var course = await _db.Courses.FindAsync([request.Id], cancellationToken);
 
             course.Title = request.Title;
             course.Department = request.Department;
             course.Credits = request.Credits!.Value;
-
-            return default;
         }
     }
 }

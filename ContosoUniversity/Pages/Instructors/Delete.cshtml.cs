@@ -91,7 +91,7 @@ public class Delete : PageModel
 
         public CommandHandler(SchoolContext db) => _db = db;
 
-        public async Task<Unit> Handle(Command message, CancellationToken token)
+        public async Task Handle(Command message, CancellationToken token)
         {
             var instructor = await _db.Instructors
                 .Include(i => i.OfficeAssignment)
@@ -109,8 +109,6 @@ public class Delete : PageModel
             {
                 department.InstructorId = null;
             }
-
-            return default;
         }
     }
 }
