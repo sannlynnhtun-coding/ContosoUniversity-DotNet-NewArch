@@ -1,16 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ContosoUniversity.Data;
 using ContosoUniversity.Models;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
+using DotNet.Testcontainers.Networks;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Respawn;
+using Testcontainers.MsSql;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests;
@@ -21,17 +27,8 @@ public class SliceFixtureCollection : ICollectionFixture<SliceFixture> { }
 public class SliceFixture : IAsyncLifetime
 {
     private Respawner _respawner;
-    private readonly IConfiguration _configuration;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public SliceFixture()
-    {
-        _factory = new ContosoTestApplicationFactory();
-
-        _configuration = _factory.Services.GetRequiredService<IConfiguration>();
-        _scopeFactory = _factory.Services.GetRequiredService<IServiceScopeFactory>();
-    }
+    private IServiceScopeFactory _scopeFactory;
+    private WebApplicationFactory<Program> _factory;
 
     class ContosoTestApplicationFactory 
         : WebApplicationFactory<Program>
@@ -42,12 +39,12 @@ public class SliceFixture : IAsyncLifetime
             {
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string>
                 {
-                    {"ConnectionStrings:DefaultConnection", _connectionString}
+                    {"ConnectionStrings:db", ConnectionString}
                 });
             });
         }
 
-        private readonly string _connectionString = "Server=(localdb)\\mssqllocaldb;Database=ContosoUniversityDotNetCore-Pages-Test;Trusted_Connection=True;MultipleActiveResultSets=true";
+        public required string ConnectionString { get; init; }
     }
 
     public async Task ExecuteScopeAsync(Func<IServiceProvider, Task> action)
@@ -204,21 +201,124 @@ public class SliceFixture : IAsyncLifetime
     }
 
     private int _courseNumber = 1;
+    private MsSqlContainer _msSqlContainer;
+    private INetwork _network;
 
     public int NextCourseNumber() => Interlocked.Increment(ref _courseNumber);
 
     public async Task InitializeAsync()
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        // Create a Docker network for container-to-container communication
+        _network = new NetworkBuilder()
+            .WithName($"test-net-{Guid.NewGuid():N}")
+            .Build();
         
+        await _network.CreateAsync();
+
+        // Start SQL Server on the network with a known alias
+        _msSqlContainer = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2022-CU10-ubuntu-22.04")
+            .WithNetwork(_network)
+            .WithNetworkAliases("mssql")
+            .Build();
+        
+        await _msSqlContainer.StartAsync();
+        
+        var connectionString = _msSqlContainer.GetConnectionString();
+
+        // Run Grate migrations using the erikbra/grate Docker image
+        // The Grate container connects to SQL via the network alias "mssql"
+        var builder = new SqlConnectionStringBuilder(connectionString)
+        {
+            DataSource = "mssql,1433"
+        };
+        //var saPassword = "Your_password123"; // Default password from MsSqlBuilder
+        var inContainerConn = builder.ToString();
+
+        // Find and mount the migration scripts directory
+        var hostScriptsPath = Path.GetFullPath(Path.Combine(FindRepoRoot(Directory.GetCurrentDirectory()), "ContosoUniversity", "App_Data"));
+        var mountPath = ToDockerPath(hostScriptsPath);
+
+        var grateContainer = new ContainerBuilder()
+            .WithImage("erikbra/grate:1.8.0")
+            .WithNetwork(_network)
+            //.WithVolumeMount(mountPath, "/db")
+            .WithBindMount(mountPath, "/db")
+            .WithEnvironment("APP_CONNSTRING", inContainerConn)
+            .WithEnvironment("DATABASE_TYPE", "sqlserver")
+            .WithWaitStrategy(Wait
+                .ForUnixContainer()
+                .UntilMessageIsLogged("has grated your database", 
+                    strategy => strategy.WithMode(WaitStrategyMode.OneShot)
+                        .WithTimeout(TimeSpan.FromMinutes(2))))
+            .Build();
+
+        try
+        {
+            await grateContainer.StartAsync();
+            
+            var (stdout, stderr) = await grateContainer.GetLogsAsync();
+            
+            if (stderr.Contains("error", StringComparison.OrdinalIgnoreCase) || 
+                stderr.Contains("failed", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Exception("Grate migrations failed. Logs:\n" + stderr);
+            }
+        }
+        finally
+        {
+            await grateContainer.StopAsync();
+            await grateContainer.DisposeAsync();
+        }
+
+        _factory = new ContosoTestApplicationFactory
+        {
+            ConnectionString = connectionString
+        };
+
+        _scopeFactory = _factory.Services.GetRequiredService<IServiceScopeFactory>();
+
         _respawner = await Respawner.CreateAsync(connectionString);
 
         await _respawner.ResetAsync(connectionString);
     }
 
-    public Task DisposeAsync()
+    private static string ToDockerPath(string path)
     {
-        _factory?.Dispose();
-        return Task.CompletedTask;
+        var full = Path.GetFullPath(path);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            full = full.Replace('\\', '/');
+            if (full.Length > 1 && full[1] == ':')
+                full = "/" + char.ToLower(full[0]) + full.Substring(2);
+        }
+        return full;
+    }
+
+    private static string FindRepoRoot(string start)
+    {
+        var dir = new DirectoryInfo(start);
+
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "ContosoUniversity.sln")))
+                return dir.FullName;
+
+            dir = dir.Parent;
+        }
+
+        // fallback to the starting directory if not found
+        return start;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _msSqlContainer.StopAsync();
+        await _msSqlContainer.DisposeAsync();
+        
+        await _factory.DisposeAsync();
+        
+        await _network.DeleteAsync();
+        await _network.DisposeAsync();
     }
 }

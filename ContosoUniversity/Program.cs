@@ -32,7 +32,7 @@ static void RegisterServices(WebApplicationBuilder builder)
     services.AddMiniProfiler().AddEntityFramework();
 
     services.AddDbContext<SchoolContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("contosouniversity-db")));
+        options.UseSqlServer(builder.Configuration.GetConnectionString("db")));
 
     services.AddAutoMapper(_ => { }, typeof(Program));
 

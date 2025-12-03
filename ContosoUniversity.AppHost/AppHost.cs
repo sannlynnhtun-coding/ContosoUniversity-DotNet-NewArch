@@ -5,7 +5,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sql = builder.AddSqlServer("sql")
     .WithLifetime(ContainerLifetime.Persistent);
 
-var db = sql.AddDatabase("contosouniversity-db");
+var db = sql.AddDatabase("db");
 db.WithCommand(
         name: "migrate-contosouniversity-db",
         displayName: "Migrate ContosoUniversity Database",
