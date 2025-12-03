@@ -34,13 +34,13 @@ jobs:
       run: ./Build.ps1
 
     - name: Upload Website Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: website
         path: artifacts/publish
 
     - name: Upload Test Result Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: artifacts/TestResults
