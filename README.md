@@ -1,46 +1,89 @@
-![CI](https://github.com/jbogard/ContosoUniversityDotNetCore-Pages/workflows/CI/badge.svg)
+# Contoso University - New Architecture
 
-# ContosoUniversity on ASP.NET Core 10.0 on .NET 10 and Razor Pages
+This project is a modern refactoring of the classic Contoso University application, demonstrating a **Service-based Vertical Slice Architecture** on ASP.NET Core 10.0 and Razor Pages.
 
-Contoso University, the way I would write it.
+## Project Overview
 
-To prepare the database, run the Aspire Migrate command on the database (after starting Aspire).
+Contoso University is a sample application used to demonstrate web development patterns and best practices. This version departs from traditional N-tier architectures in favor of vertical slices, where each feature is self-contained. It also transitions from MediatR-based CQRS to a clean **Domain Service Layer** to simplify logic while maintaining high testability.
 
-## Things demonstrated
+## Technology Stack
 
-- CQRS and MediatR
-- AutoMapper
-- Vertical slice architecture
-- Razor Pages
-- Fluent Validation
-- HtmlTags
-- Entity Framework Core
+- **Framework**: ASP.NET Core 10.0 (Razor Pages)
+- **ORM**: Entity Framework Core 10.0
+- **Database**: SQL Server
+- **Architecture**: Vertical Slice Architecture with Domain Services
+- **Validation**: FluentValidation
+- **Testing**: xUnit, Shouldly, Testcontainers (MsSql), Respawn
+- **Migration**: EF Core Migrations & Grate (for integration tests)
 
+## Getting Started
 
-1. Create a New Migration
-Use this when you have modified your domain entities (e.g., 
-Student
-, Course, Instructor) and need to generate a corresponding database migration.
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (Required for Integration Tests)
+- SQL Server (LocalDB or Express for local development)
+
+### Running the Application
+
+1. Clone the repository.
+2. Update the connection string in `appsettings.json` if necessary.
+3. Run the application:
+
+   ```powershell
+   dotnet run --project ContosoUniversity
+   ```
+
+## Database Management
+
+This project uses Entity Framework Core for schema management.
+
+### Adding a New Migration
+
+If you modify entities in `ContosoUniversity.Domain`:
 
 ```powershell
-dotnet ef migrations add <YourMigrationName> --project ContosoUniversity.Domain --startup-project ContosoUniversity
+dotnet ef migrations add <MigrationName> --project ContosoUniversity.Domain --startup-project ContosoUniversity
 ```
-Replace <YourMigrationName> with a descriptive name, like AddStudentEmail or InitialCreate.
 
-2. Update the Database
-Use this to apply pending migrations to your database.
+### Updating the Database
 
-powershell
+```powershell
 dotnet ef database update --project ContosoUniversity.Domain --startup-project ContosoUniversity
-3. (Optional) Generate SQL Script
-If you need a SQL script for production deployment:
+```
+
+## Running Tests
+
+The project includes a robust integration testing suite in `ContosoUniversity.IntegrationTests` that uses **Testcontainers** to spin up a real SQL Server instance in Docker.
+
+### Run All Tests
+
+```powershell
+dotnet test
+```
+
+### Run Specific Test Project
+
+```powershell
+dotnet test ContosoUniversity.IntegrationTests
+```
+
+## Architecture Details
+
+- **ContosoUniversity.Domain**: Contains entities, the `SchoolContext`, DTOs, and Service implementations. This is the heart of the application logic.
+- **ContosoUniversity**: The Razor Pages web application. It consumes the domain services.
+- **ContosoUniversity.IntegrationTests**: Uses `SliceFixture` to provide an isolated test environment with a fresh database per test class.
+
+## Useful Commands
+
+### Generate SQL Script
 
 ```powershell
 dotnet ef migrations script --project ContosoUniversity.Domain --startup-project ContosoUniversity
 ```
 
-```bash
-sqlcmd -S . -U sa -P sasa@123 -d ContosoUniversity -i "new data.sql"
-```
+### Tailwind CSS Build (If used)
 
-npx tailwindcss -i ./wwwroot/css/app.css -o ./wwwroot/css/site.css --minify 
+```powershell
+npx tailwindcss -i ./wwwroot/css/app.css -o ./wwwroot/css/site.css --minify
+```
