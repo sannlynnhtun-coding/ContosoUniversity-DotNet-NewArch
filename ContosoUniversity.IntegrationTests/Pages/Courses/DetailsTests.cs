@@ -1,34 +1,33 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Shouldly;
 using Xunit;
-using Details = ContosoUniversity.Pages.Courses.Details;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Courses;
 
 [Collection(nameof(SliceFixture))]
-public class DetailsTests
+public class DetailsTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DetailsTests(SliceFixture fixture) => _fixture = fixture;
+    public DetailsTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_query_for_details()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
@@ -37,13 +36,14 @@ public class DetailsTests
         {
             Credits = 4,
             Department = dept,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "English 101"
         };
 
-        await _fixture.InsertAsync(dept, course);
+        await Fixture.InsertAsync(dept, course);
 
-        var result = await _fixture.SendAsync(new Details.Query { Id = course.Id });
+        var result = await Fixture.ExecuteServiceAsync<ICourseService, CourseDetailDto>(s => 
+            s.GetCourseAsync(course.Id));
 
         result.ShouldNotBeNull();
         result.Credits.ShouldBe(course.Credits);

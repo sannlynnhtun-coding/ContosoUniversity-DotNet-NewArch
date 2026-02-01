@@ -1,70 +1,61 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Students;
+using ContosoUniversity.Domain.Features.Students;
 using Shouldly;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Students;
 
 [Collection(nameof(SliceFixture))]
-public class EditTests
+public class EditTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public EditTests(SliceFixture fixture) => _fixture = fixture;
+    public EditTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_edit_details()
     {
-        var cmd = new Create.Command
+        var student = new Student
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = DateTime.Today
         };
+        await Fixture.InsertAsync(student);
 
-        var studentId = await _fixture.SendAsync(cmd);
+        var result = await Fixture.ExecuteServiceAsync<IStudentService, StudentEditDto>(s => 
+            s.GetStudentForEditAsync(student.Id));
 
-        var query = new Edit.Query
-        {
-            Id = studentId
-        };
-
-        var result = await _fixture.SendAsync(query);
-
-        result.FirstMidName.ShouldBe(cmd.FirstMidName);
-        result.LastName.ShouldBe(cmd.LastName);
-        result.EnrollmentDate.ShouldBe(cmd.EnrollmentDate);
+        result.FirstMidName.ShouldBe(student.FirstMidName);
+        result.LastName.ShouldBe(student.LastName);
+        result.EnrollmentDate.ShouldBe(student.EnrollmentDate);
     }
 
     [Fact]
     public async Task Should_edit_student()
     {
-        var createCommand = new Create.Command
+        var student = new Student
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = DateTime.Today
         };
+        await Fixture.InsertAsync(student);
 
-        var studentId = await _fixture.SendAsync(createCommand);
-
-        var editCommand = new Edit.Command
+        var dto = new StudentEditDto
         {
-            Id = studentId,
+            Id = student.Id,
             FirstMidName = "Mary",
             LastName = "Smith",
             EnrollmentDate = DateTime.Today.AddYears(-1)
         };
 
-        await _fixture.SendAsync(editCommand);
+        await Fixture.ExecuteServiceAsync<IStudentService>(s => s.UpdateStudentAsync(dto));
 
-        var student = await _fixture.FindAsync<Student>(studentId);
+        var dbStudent = await Fixture.FindAsync<Student>(student.Id);
 
-        student.ShouldNotBeNull();
-        student.FirstMidName.ShouldBe(editCommand.FirstMidName);
-        student.LastName.ShouldBe(editCommand.LastName);
-        student.EnrollmentDate.ShouldBe(editCommand.EnrollmentDate.GetValueOrDefault());
+        dbStudent.ShouldNotBeNull();
+        dbStudent.FirstMidName.ShouldBe(dto.FirstMidName);
+        dbStudent.LastName.ShouldBe(dto.LastName);
+        dbStudent.EnrollmentDate.ShouldBe(dto.EnrollmentDate.GetValueOrDefault());
     }
 }

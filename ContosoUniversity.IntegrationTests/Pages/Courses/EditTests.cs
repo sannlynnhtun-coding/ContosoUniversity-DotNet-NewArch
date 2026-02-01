@@ -1,34 +1,33 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Courses;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Shouldly;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Courses;
 
 [Collection(nameof(SliceFixture))]
-public class EditTests
+public class EditTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public EditTests(SliceFixture fixture) => _fixture = fixture;
+    public EditTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_query_for_command()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
@@ -37,40 +36,42 @@ public class EditTests
         {
             Credits = 4,
             Department = dept,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "English 101"
         };
-        await _fixture.InsertAsync(dept, course);
+        await Fixture.InsertAsync(dept, course);
 
-        var result = await _fixture.SendAsync(new Edit.Query { Id = course.Id });
+        var result = await Fixture.ExecuteServiceAsync<ICourseService, CourseDetailDto>(s => 
+            s.GetCourseAsync(course.Id));
 
         result.ShouldNotBeNull();
         result.Credits.ShouldBe(course.Credits);
-        result.Department.Id.ShouldBe(dept.Id);
+        result.DepartmentName.ShouldBe(dept.Name);
         result.Title.ShouldBe(course.Title);
     }
 
     [Fact]
     public async Task Should_edit()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
         var newDept = new Department
         {
             Name = "English",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
@@ -79,31 +80,26 @@ public class EditTests
         {
             Credits = 4,
             Department = dept,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "English 101"
         };
-        await _fixture.InsertAsync(dept, newDept, course);
+        await Fixture.InsertAsync(dept, newDept, course);
 
-        Edit.Command command = default;
-
-        await _fixture.ExecuteDbContextAsync(async (ctxt, mediator) =>
+        var dto = new CourseEditDto
         {
-            command = new Edit.Command
-            {
-                Id = course.Id,
-                Credits = 5,
-                Title = "English 202",
-                Department = await ctxt.Departments.FindAsync(newDept.Id)
-            };
+            Id = course.Id,
+            Credits = 5,
+            Title = "English 202",
+            DepartmentId = newDept.Id
+        };
 
-            await mediator.Send(command);
-        });
+        await Fixture.ExecuteServiceAsync<ICourseService>(s => s.UpdateCourseAsync(dto));
 
-        var edited = await _fixture.FindAsync<Course>(course.Id);
+        var edited = await Fixture.FindAsync<Course>(course.Id);
 
         edited.ShouldNotBeNull();
         edited.DepartmentId.ShouldBe(newDept.Id);
-        edited.Credits.ShouldBe(command.Credits.GetValueOrDefault());
-        edited.Title.ShouldBe(command.Title);
+        edited.Credits.ShouldBe(dto.Credits);
+        edited.Title.ShouldBe(dto.Title);
     }
 }

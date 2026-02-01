@@ -114,4 +114,23 @@ public class DepartmentService : IDepartmentService
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<DepartmentEditDto> GetDepartmentForEditAsync(int id)
+    {
+        var d = await _context.Departments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == id);
+
+        if (d == null) return null;
+
+        return new DepartmentEditDto
+        {
+            Id = d.Id,
+            Name = d.Name,
+            Budget = d.Budget,
+            StartDate = d.StartDate,
+            InstructorId = d.InstructorId,
+            RowVersion = d.RowVersion
+        };
+    }
 }

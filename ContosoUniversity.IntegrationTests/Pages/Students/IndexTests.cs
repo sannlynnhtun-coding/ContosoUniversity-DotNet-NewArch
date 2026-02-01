@@ -1,19 +1,17 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
+using ContosoUniversity.Domain.Features.Students;
+using ContosoUniversity.Domain.Shared;
 using Shouldly;
 using Xunit;
-using Index = ContosoUniversity.Pages.Students.Index;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Students;
 
 [Collection(nameof(SliceFixture))]
-public class IndexTests
+public class IndexTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public IndexTests(SliceFixture fixture) => _fixture = fixture;
+    public IndexTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_return_all_items_for_default_search()
@@ -32,15 +30,14 @@ public class IndexTests
             FirstMidName = "Jane",
             LastName = lastName
         };
-        await _fixture.InsertAsync(student1, student2);
+        await Fixture.InsertAsync(student1, student2);
 
-        var query = new Index.Query{CurrentFilter = lastName };
+        var result = await Fixture.ExecuteServiceAsync<IStudentService, PaginatedList<StudentListDto>>(s => 
+            s.GetStudentsAsync(null, lastName, 1, 10));
 
-        var result = await _fixture.SendAsync(query);
-
-        result.Results.Count.ShouldBeGreaterThanOrEqualTo(2);
-        result.Results.Select(r => r.Id).ShouldContain(student1.Id);
-        result.Results.Select(r => r.Id).ShouldContain(student2.Id);
+        result.Count.ShouldBeGreaterThanOrEqualTo(2);
+        result.Select(r => r.Id).ShouldContain(student1.Id);
+        result.Select(r => r.Id).ShouldContain(student2.Id);
     }
 
     [Fact]
@@ -60,14 +57,13 @@ public class IndexTests
             FirstMidName = "Jane",
             LastName = lastName + "aaa"
         };
-        await _fixture.InsertAsync(student1, student2);
+        await Fixture.InsertAsync(student1, student2);
 
-        var query = new Index.Query{CurrentFilter = lastName, SortOrder = "name_desc" };
+        var result = await Fixture.ExecuteServiceAsync<IStudentService, PaginatedList<StudentListDto>>(s => 
+            s.GetStudentsAsync("name_desc", lastName, 1, 10));
 
-        var result = await _fixture.SendAsync(query);
-
-        result.Results.Count.ShouldBe(2);
-        result.Results[0].Id.ShouldBe(student1.Id);
-        result.Results[1].Id.ShouldBe(student2.Id);
+        result.Count.ShouldBe(2);
+        result[0].Id.ShouldBe(student1.Id);
+        result[1].Id.ShouldBe(student2.Id);
     }
 }

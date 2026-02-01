@@ -1,56 +1,53 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Shouldly;
 using Xunit;
-using Index = ContosoUniversity.Pages.Departments.Index;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Departments;
 
 [Collection(nameof(SliceFixture))]
-public class IndexTests
+public class IndexTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public IndexTests(SliceFixture fixture) => _fixture = fixture;
+    public IndexTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_list_departments()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
         var dept2 = new Department
         {
             Name = "English",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 456m,
             StartDate = DateTime.Today
         };
 
-        await _fixture.InsertAsync(dept, dept2);
+        await Fixture.InsertAsync(dept, dept2);
 
-        var query = new Index.Query();
-
-        var result = await _fixture.SendAsync(query);
+        var result = await Fixture.ExecuteServiceAsync<IDepartmentService, List<DepartmentListDto>>(s => 
+            s.GetDepartmentsAsync());
 
         result.ShouldNotBeNull();
         result.Count.ShouldBeGreaterThanOrEqualTo(2);
         result.Select(m => m.Id).ShouldContain(dept.Id);
         result.Select(m => m.Id).ShouldContain(dept2.Id);
     }
-
 }

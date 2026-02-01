@@ -1,85 +1,86 @@
-﻿using System;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
-using ContosoUniversity.Pages.Students;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Enrollments;
+using ContosoUniversity.Domain.Features.Instructors;
+using ContosoUniversity.Domain.Features.Students;
 using Shouldly;
 using Xunit;
-using Details = ContosoUniversity.Pages.Students.Details;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Students;
 
 [Collection(nameof(SliceFixture))]
-public class DetailsTests
+public class DetailsTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DetailsTests(SliceFixture fixture) => _fixture = fixture;
+    public DetailsTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_details()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var englishDept = new Department
         {
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             Name = "English 101",
             StartDate = DateTime.Today
         };
-        await _fixture.InsertAsync(englishDept);
-        var deptId = englishDept.Id;
+        await Fixture.InsertAsync(englishDept);
 
         var course1 = new Course
         {
-            DepartmentId = deptId,
+            DepartmentId = englishDept.Id,
             Credits = 10,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "Course 1"
         };
         var course2 = new Course
         {
-            DepartmentId = deptId,
+            DepartmentId = englishDept.Id,
             Credits = 10,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "Course 2"
         };
-        await _fixture.InsertAsync(course1, course2);
+        await Fixture.InsertAsync(course1, course2);
 
-        var command = new Create.Command
+        var student = new Student
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = new DateTime(2013, 1, 1)
         };
-        var studentId = await _fixture.SendAsync(command);
+        await Fixture.InsertAsync(student);
 
         var enrollment1 = new Enrollment
         {
             CourseId = course1.Id,
             Grade = Grade.A,
-            StudentId = studentId
+            StudentId = student.Id
         };
         var enrollment2 = new Enrollment
         {
             CourseId = course2.Id,
             Grade = Grade.F,
-            StudentId = studentId
+            StudentId = student.Id
         };
-        await _fixture.InsertAsync(enrollment1, enrollment2);
+        await Fixture.InsertAsync(enrollment1, enrollment2);
 
-        var details = await _fixture.SendAsync(new Details.Query {Id = studentId});
+        var details = await Fixture.ExecuteServiceAsync<IStudentService, StudentDetailDto>(s => 
+            s.GetStudentAsync(student.Id));
 
         details.ShouldNotBeNull();
-        details.FirstMidName.ShouldBe(command.FirstMidName);
-        details.LastName.ShouldBe(command.LastName);
-        details.EnrollmentDate.ShouldBe(command.EnrollmentDate.GetValueOrDefault());
-        details.Enrollments.Count.ShouldBe(2);
+        details.FirstMidName.ShouldBe(student.FirstMidName);
+        details.LastName.ShouldBe(student.LastName);
+        details.EnrollmentDate.ShouldBe(student.EnrollmentDate);
+        details.Enrollments.Count().ShouldBe(2);
     }
 }

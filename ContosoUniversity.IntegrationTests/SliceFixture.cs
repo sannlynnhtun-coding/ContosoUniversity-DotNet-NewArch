@@ -1,18 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
+using ContosoUniversity.Domain.Infrastructure;
+using ContosoUniversity.Domain.Shared;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Networks;
-using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Respawn;
@@ -29,6 +29,7 @@ public class SliceFixture : IAsyncLifetime
     private Respawner _respawner;
     private IServiceScopeFactory _scopeFactory;
     private WebApplicationFactory<Program> _factory;
+    private string _connectionString;
 
     class ContosoTestApplicationFactory 
         : WebApplicationFactory<Program>
@@ -95,17 +96,17 @@ public class SliceFixture : IAsyncLifetime
     public Task ExecuteDbContextAsync(Func<SchoolContext, ValueTask> action) 
         => ExecuteScopeAsync(sp => action(sp.GetService<SchoolContext>()).AsTask());
 
-    public Task ExecuteDbContextAsync(Func<SchoolContext, IMediator, Task> action) 
-        => ExecuteScopeAsync(sp => action(sp.GetService<SchoolContext>(), sp.GetService<IMediator>()));
-
     public Task<T> ExecuteDbContextAsync<T>(Func<SchoolContext, Task<T>> action) 
         => ExecuteScopeAsync(sp => action(sp.GetService<SchoolContext>()));
 
     public Task<T> ExecuteDbContextAsync<T>(Func<SchoolContext, ValueTask<T>> action) 
         => ExecuteScopeAsync(sp => action(sp.GetService<SchoolContext>()).AsTask());
 
-    public Task<T> ExecuteDbContextAsync<T>(Func<SchoolContext, IMediator, Task<T>> action) 
-        => ExecuteScopeAsync(sp => action(sp.GetService<SchoolContext>(), sp.GetService<IMediator>()));
+    public Task ExecuteServiceAsync<TService>(Func<TService, Task> action)
+        => ExecuteScopeAsync(sp => action(sp.GetRequiredService<TService>()));
+
+    public Task<TResult> ExecuteServiceAsync<TService, TResult>(Func<TService, Task<TResult>> action)
+        => ExecuteScopeAsync(sp => action(sp.GetRequiredService<TService>()));
 
     public Task InsertAsync<T>(params T[] entities) where T : class
     {
@@ -180,39 +181,95 @@ public class SliceFixture : IAsyncLifetime
         return ExecuteDbContextAsync(db => db.Set<T>().FindAsync(id).AsTask());
     }
 
-    public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request)
-    {
-        return ExecuteScopeAsync(sp =>
-        {
-            var mediator = sp.GetRequiredService<IMediator>();
-
-            return mediator.Send(request);
-        });
-    }
-
-    public Task SendAsync(IRequest request)
-    {
-        return ExecuteScopeAsync(sp =>
-        {
-            var mediator = sp.GetRequiredService<IMediator>();
-
-            return mediator.Send(request);
-        });
-    }
-
-    private int _courseNumber = 1;
+    private int _courseNumber;
+    private int _courseNumberBase = 1;
     private MsSqlContainer _msSqlContainer;
     private INetwork _network;
 
-    public int NextCourseNumber() => Interlocked.Increment(ref _courseNumber);
+    /// <summary>
+    /// Call from test class InitializeAsync to use a unique range of course IDs per test class (avoids parallel collision).
+    /// </summary>
+    public void SetCourseNumberBase(int baseValue)
+    {
+        _courseNumberBase = baseValue;
+        _courseNumber = 0;
+    }
+
+    public int NextCourseNumber() => _courseNumberBase + Interlocked.Increment(ref _courseNumber);
 
     public async Task InitializeAsync()
+    {
+        string connectionString;
+
+        try
+        {
+            connectionString = await InitializeWithDockerAsync();
+        }
+        catch (DotNet.Testcontainers.Builders.DockerUnavailableException)
+        {
+            // Docker not running: use fallback connection string (env or LocalDB)
+            connectionString = Environment.GetEnvironmentVariable("TEST_CONNECTION_STRING")
+                ?? "Server=(localdb)\\mssqllocaldb;Database=ContosoUniversity_Test;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+
+            await EnsureDatabaseMigratedAsync(connectionString);
+        }
+
+        _connectionString = connectionString;
+
+        _factory = new ContosoTestApplicationFactory
+        {
+            ConnectionString = connectionString
+        };
+
+        _scopeFactory = _factory.Services.GetRequiredService<IServiceScopeFactory>();
+
+        _respawner = await Respawner.CreateAsync(connectionString, new RespawnerOptions
+        {
+            DbAdapter = DbAdapter.SqlServer,
+            SchemasToInclude = new[] { "dbo" }
+        });
+
+        await _respawner.ResetAsync(connectionString);
+    }
+
+    /// <summary>
+    /// Resets the database (deletes all data). Call from test class IAsyncLifetime to get a clean state per test class.
+    /// </summary>
+    public async Task ResetDatabaseAsync()
+    {
+        await _respawner.ResetAsync(_connectionString);
+
+        // Safeguard: Manually clear tables that might be missed or have identity/PK issues in some environments
+        await ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync(@"
+            DELETE FROM [Enrollment];
+            DELETE FROM [CourseAssignment];
+            DELETE FROM [Course];
+            DELETE FROM [Student];
+            DELETE FROM [Department];
+            DELETE FROM [OfficeAssignment];
+            DELETE FROM [Instructor];
+        "));
+    }
+
+    private static async Task EnsureDatabaseMigratedAsync(string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<SchoolContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+
+        await using (var context = new SchoolContext(options))
+        {
+            await context.Database.MigrateAsync();
+        }
+    }
+
+    private async Task<string> InitializeWithDockerAsync()
     {
         // Create a Docker network for container-to-container communication
         _network = new NetworkBuilder()
             .WithName($"test-net-{Guid.NewGuid():N}")
             .Build();
-        
+
         await _network.CreateAsync();
 
         // Start SQL Server on the network with a known alias
@@ -221,9 +278,9 @@ public class SliceFixture : IAsyncLifetime
             .WithNetwork(_network)
             .WithNetworkAliases("mssql")
             .Build();
-        
+
         await _msSqlContainer.StartAsync();
-        
+
         var connectionString = _msSqlContainer.GetConnectionString();
 
         // Run Grate migrations using the erikbra/grate Docker image
@@ -232,7 +289,6 @@ public class SliceFixture : IAsyncLifetime
         {
             DataSource = "mssql,1433"
         };
-        //var saPassword = "Your_password123"; // Default password from MsSqlBuilder
         var inContainerConn = builder.ToString();
 
         // Find and mount the migration scripts directory
@@ -242,13 +298,12 @@ public class SliceFixture : IAsyncLifetime
         var grateContainer = new ContainerBuilder()
             .WithImage("erikbra/grate:1.8.0")
             .WithNetwork(_network)
-            //.WithVolumeMount(mountPath, "/db")
             .WithBindMount(mountPath, "/db")
             .WithEnvironment("APP_CONNSTRING", inContainerConn)
             .WithEnvironment("DATABASE_TYPE", "sqlserver")
             .WithWaitStrategy(Wait
                 .ForUnixContainer()
-                .UntilMessageIsLogged("has grated your database", 
+                .UntilMessageIsLogged("has grated your database",
                     strategy => strategy.WithMode(WaitStrategyMode.OneShot)
                         .WithTimeout(TimeSpan.FromMinutes(2))))
             .Build();
@@ -256,10 +311,10 @@ public class SliceFixture : IAsyncLifetime
         try
         {
             await grateContainer.StartAsync();
-            
+
             var (stdout, stderr) = await grateContainer.GetLogsAsync();
-            
-            if (stderr.Contains("error", StringComparison.OrdinalIgnoreCase) || 
+
+            if (stderr.Contains("error", StringComparison.OrdinalIgnoreCase) ||
                 stderr.Contains("failed", StringComparison.OrdinalIgnoreCase))
             {
                 throw new Exception("Grate migrations failed. Logs:\n" + stderr);
@@ -271,16 +326,7 @@ public class SliceFixture : IAsyncLifetime
             await grateContainer.DisposeAsync();
         }
 
-        _factory = new ContosoTestApplicationFactory
-        {
-            ConnectionString = connectionString
-        };
-
-        _scopeFactory = _factory.Services.GetRequiredService<IServiceScopeFactory>();
-
-        _respawner = await Respawner.CreateAsync(connectionString);
-
-        await _respawner.ResetAsync(connectionString);
+        return connectionString;
     }
 
     private static string ToDockerPath(string path)
@@ -313,12 +359,21 @@ public class SliceFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _msSqlContainer.StopAsync();
-        await _msSqlContainer.DisposeAsync();
+        if (_msSqlContainer != null)
+        {
+            await _msSqlContainer.StopAsync();
+            await _msSqlContainer.DisposeAsync();
+        }
         
-        await _factory.DisposeAsync();
+        if (_factory != null)
+        {
+            await _factory.DisposeAsync();
+        }
         
-        await _network.DeleteAsync();
-        await _network.DisposeAsync();
+        if (_network != null)
+        {
+            await _network.DeleteAsync();
+            await _network.DisposeAsync();
+        }
     }
 }

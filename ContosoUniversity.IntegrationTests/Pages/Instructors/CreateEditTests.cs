@@ -1,8 +1,10 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
@@ -10,110 +12,99 @@ using Xunit;
 namespace ContosoUniversity.IntegrationTests.Pages.Instructors;
 
 [Collection(nameof(SliceFixture))]
-public class CreateEditTests
+public class CreateEditTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public CreateEditTests(SliceFixture fixture) => _fixture = fixture;
+    public CreateEditTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_create_new_instructor()
     {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var lastName = "Seinfeld_" + suffix;
         var englishDept = new Department
         {
-            Name = "English",
+            Name = "English_" + suffix,
             StartDate = DateTime.Today
         };
+        await Fixture.InsertAsync(englishDept);
+
         var english101 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 101",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
         var english201 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 201",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
 
-        await _fixture.InsertAsync(englishDept, english101, english201);
+        await Fixture.InsertAsync(english101, english201);
 
-        var command = new CreateEdit.Command
+        var dto = new InstructorEditDto
         {
             FirstMidName = "Jerry",
-            LastName = "Seinfeld",
+            LastName = lastName,
             HireDate = DateTime.Today,
             OfficeAssignmentLocation = "Houston",
-            SelectedCourses = new [] {english101.Id.ToString(), english201.Id.ToString()}
+            SelectedCourses = new List<int> { english101.Id, english201.Id }
         };
 
-        var id = await _fixture.SendAsync(command);
+        await Fixture.ExecuteServiceAsync<IInstructorService>(s => s.CreateInstructorAsync(dto));
 
-        var created = await _fixture.ExecuteDbContextAsync(db => db.Instructors.Where(i => i.Id == id).Include(i => i.CourseAssignments).Include(i => i.OfficeAssignment).SingleOrDefaultAsync());
+        var created = await Fixture.ExecuteDbContextAsync(db => db.Instructors
+            .Where(i => i.LastName == lastName && i.FirstMidName == "Jerry")
+            .Include(i => i.CourseAssignments)
+            .Include(i => i.OfficeAssignment)
+            .SingleOrDefaultAsync());
 
-        created.FirstMidName.ShouldBe(command.FirstMidName);
-        created.LastName.ShouldBe(command.LastName);
-        created.HireDate.ShouldBe(command.HireDate.GetValueOrDefault());
+        created.ShouldNotBeNull();
+        created.FirstMidName.ShouldBe(dto.FirstMidName);
+        created.LastName.ShouldBe(dto.LastName);
+        created.HireDate.ShouldBe(dto.HireDate);
         created.OfficeAssignment.ShouldNotBeNull();
-        created.OfficeAssignment.Location.ShouldBe(command.OfficeAssignmentLocation);
+        created.OfficeAssignment.Location.ShouldBe(dto.OfficeAssignmentLocation);
         created.CourseAssignments.Count.ShouldBe(2);
     }
 
     [Fact]
     public async Task Should_edit_instructor_details()
     {
-        var englishDept = new Department
-        {
-            Name = "English",
-            StartDate = DateTime.Today
-        };
-        var english101 = new Course
-        {
-            Department = englishDept,
-            Title = "English 101",
-            Credits = 4,
-            Id = _fixture.NextCourseNumber()
-        };
-        var english201 = new Course
-        {
-            Department = englishDept,
-            Title = "English 201",
-            Credits = 4,
-            Id = _fixture.NextCourseNumber()
-        };
-
-        await _fixture.InsertAsync(englishDept, english101, english201);
-
-        var instructorId = await _fixture.SendAsync(new CreateEdit.Command
+        var instructor = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(instructor);
 
-        var command = new CreateEdit.Command
+        var dto = new InstructorEditDto
         {
+            Id = instructor.Id,
             FirstMidName = "Jerry",
             LastName = "Seinfeld",
             HireDate = DateTime.Today,
             OfficeAssignmentLocation = "Houston",
-            SelectedCourses = new string[0],
-            Id = instructorId
+            SelectedCourses = new List<int>()
         };
 
-        await _fixture.SendAsync(command);
+        await Fixture.ExecuteServiceAsync<IInstructorService>(s => s.UpdateInstructorAsync(dto));
 
-        var edited = await _fixture.ExecuteDbContextAsync(db => db.Instructors.Where(i => i.Id == instructorId).Include(i => i.CourseAssignments).Include(i => i.OfficeAssignment).SingleOrDefaultAsync());
+        var edited = await Fixture.ExecuteDbContextAsync(db => db.Instructors
+            .Where(i => i.Id == instructor.Id)
+            .Include(i => i.CourseAssignments)
+            .Include(i => i.OfficeAssignment)
+            .SingleOrDefaultAsync());
 
-        edited.FirstMidName.ShouldBe(command.FirstMidName);
-        edited.LastName.ShouldBe(command.LastName);
-        edited.HireDate.ShouldBe(command.HireDate.GetValueOrDefault());
+        edited.FirstMidName.ShouldBe(dto.FirstMidName);
+        edited.LastName.ShouldBe(dto.LastName);
+        edited.HireDate.ShouldBe(dto.HireDate);
         edited.OfficeAssignment.ShouldNotBeNull();
-        edited.OfficeAssignment.Location.ShouldBe(command.OfficeAssignmentLocation);
+        edited.OfficeAssignment.Location.ShouldBe(dto.OfficeAssignmentLocation);
     }
 
     [Fact]
@@ -124,52 +115,57 @@ public class CreateEditTests
             Name = "English",
             StartDate = DateTime.Today
         };
+        await Fixture.InsertAsync(englishDept);
+
         var english101 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 101",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
         var english201 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 201",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
-        await _fixture.InsertAsync(englishDept, english101, english201);
+        await Fixture.InsertAsync(english101, english201);
 
-        var instructorId = await _fixture.SendAsync(new CreateEdit.Command
+        var instructor = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
-            HireDate = DateTime.Today,
-            SelectedCourses = new[] { english101.Id.ToString() }
-        });
+            HireDate = DateTime.Today
+        };
+        await Fixture.InsertAsync(instructor);
+        await Fixture.InsertAsync(new CourseAssignment { CourseId = english101.Id, InstructorId = instructor.Id });
 
-        var command = new CreateEdit.Command
+        var dto = new InstructorEditDto
         {
+            Id = instructor.Id,
             FirstMidName = "Jerry",
             LastName = "Seinfeld",
             HireDate = DateTime.Today,
             OfficeAssignmentLocation = "Houston",
-            SelectedCourses = new[] { english201.Id.ToString() },
-            Id = instructorId
+            SelectedCourses = new List<int> { english201.Id }
         };
 
-        await _fixture.SendAsync(command);
+        await Fixture.ExecuteServiceAsync<IInstructorService>(s => s.UpdateInstructorAsync(dto));
 
-        var edited = await _fixture.ExecuteDbContextAsync(db => db.Instructors.Where(i => i.Id == instructorId).Include(i => i.CourseAssignments).Include(i => i.OfficeAssignment).SingleOrDefaultAsync());
+        var edited = await Fixture.ExecuteDbContextAsync(db => db.Instructors
+            .Where(i => i.Id == instructor.Id)
+            .Include(i => i.CourseAssignments)
+            .Include(i => i.OfficeAssignment)
+            .SingleOrDefaultAsync());
 
-        edited.FirstMidName.ShouldBe(command.FirstMidName);
-        edited.LastName.ShouldBe(command.LastName);
-        edited.HireDate.ShouldBe(command.HireDate.GetValueOrDefault());
+        edited.FirstMidName.ShouldBe(dto.FirstMidName);
+        edited.LastName.ShouldBe(dto.LastName);
+        edited.HireDate.ShouldBe(dto.HireDate);
         edited.OfficeAssignment.ShouldNotBeNull();
-        edited.OfficeAssignment.Location.ShouldBe(command.OfficeAssignmentLocation);
+        edited.OfficeAssignment.Location.ShouldBe(dto.OfficeAssignmentLocation);
         edited.CourseAssignments.Count.ShouldBe(1);
         edited.CourseAssignments.First().CourseId.ShouldBe(english201.Id);
     }
-
 }

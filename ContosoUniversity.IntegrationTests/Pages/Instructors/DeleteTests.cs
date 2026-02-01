@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
@@ -10,96 +11,73 @@ using Xunit;
 namespace ContosoUniversity.IntegrationTests.Pages.Instructors;
 
 [Collection(nameof(SliceFixture))]
-public class DeleteTests
+public class DeleteTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DeleteTests(SliceFixture fixture) => _fixture = fixture;
+    public DeleteTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_query_for_command()
     {
-        var englishDept = new Department
-        {
-            Name = "English",
-            StartDate = DateTime.Today
-        };
-        var english101 = new Course
-        {
-            Department = englishDept,
-            Title = "English 101",
-            Credits = 4,
-            Id = _fixture.NextCourseNumber()
-        };
-        var command = new CreateEdit.Command
+        var instructor = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
-            HireDate = DateTime.Today,
-            SelectedCourses = new []{ english101.Id.ToString()}
+            HireDate = DateTime.Today
         };
-        var instructorId = await _fixture.SendAsync(command);
+        await Fixture.InsertAsync(instructor);
 
-        await _fixture.InsertAsync(englishDept, english101);
-
-        var result = await _fixture.SendAsync(new Delete.Query { Id = instructorId });
+        var result = await Fixture.ExecuteServiceAsync<IInstructorService, InstructorDetailDto>(s => 
+            s.GetInstructorAsync(instructor.Id));
 
         result.ShouldNotBeNull();
-        result.FirstMidName.ShouldBe(command.FirstMidName);
-        result.OfficeAssignmentLocation.ShouldBe(command.OfficeAssignmentLocation);
+        result.FirstMidName.ShouldBe(instructor.FirstMidName);
     }
 
     [Fact]
     public async Task Should_delete_instructor()
     {
-        var instructorId = await _fixture.SendAsync(new CreateEdit.Command
+        var instructor = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(instructor);
+
         var englishDept = new Department
         {
             Name = "English",
             StartDate = DateTime.Today,
-            InstructorId = instructorId
+            InstructorId = instructor.Id
         };
+        await Fixture.InsertAsync(englishDept);
+
         var english101 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 101",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
+        await Fixture.InsertAsync(english101);
 
-        await _fixture.InsertAsync(englishDept, english101);
+        await Fixture.InsertAsync(new CourseAssignment { CourseId = english101.Id, InstructorId = instructor.Id });
 
-        await _fixture.SendAsync(new CreateEdit.Command
-        {
-            Id = instructorId,
-            FirstMidName = "George",
-            LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
-            HireDate = DateTime.Today,
-            SelectedCourses = new[] { english101.Id.ToString() }
-        });
+        await Fixture.ExecuteServiceAsync<IInstructorService>(s => s.DeleteInstructorAsync(instructor.Id));
 
-        await _fixture.SendAsync(new Delete.Command { Id = instructorId });
-
-        var instructorCount = await _fixture.ExecuteDbContextAsync(db => db.Instructors.Where(i => i.Id == instructorId).CountAsync());
+        var instructorCount = await Fixture.ExecuteDbContextAsync(db => db.Instructors
+            .Where(i => i.Id == instructor.Id)
+            .CountAsync());
 
         instructorCount.ShouldBe(0);
 
-        var englishDeptId = englishDept.Id;
-        englishDept = await _fixture.ExecuteDbContextAsync(db => db.Departments.FindAsync(englishDeptId));
+        var dbDept = await Fixture.ExecuteDbContextAsync(db => db.Departments.FindAsync(englishDept.Id));
+        dbDept.InstructorId.ShouldBeNull();
 
-        englishDept.InstructorId.ShouldBeNull();
-
-        var courseInstructorCount = await _fixture.ExecuteDbContextAsync(db => db.CourseAssignments.Where(ci => ci.InstructorId == instructorId).CountAsync());
+        var courseInstructorCount = await Fixture.ExecuteDbContextAsync(db => db.CourseAssignments
+            .Where(ci => ci.InstructorId == instructor.Id)
+            .CountAsync());
 
         courseInstructorCount.ShouldBe(0);
     }
-
 }

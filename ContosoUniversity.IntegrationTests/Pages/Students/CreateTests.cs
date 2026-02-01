@@ -1,36 +1,37 @@
-﻿using System;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Students;
+using ContosoUniversity.Domain.Features.Students;
+using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Students;
 
 [Collection(nameof(SliceFixture))]
-public class CreateTests
+public class CreateTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public CreateTests(SliceFixture fixture) => _fixture = fixture;
+    public CreateTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_create_student()
     {
-        var cmd = new Create.Command
+        var dto = new StudentEditDto
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = DateTime.Today
         };
 
-        var studentId = await _fixture.SendAsync(cmd);
+        await Fixture.ExecuteServiceAsync<IStudentService>(s => s.CreateStudentAsync(dto));
 
-        var student = await _fixture.FindAsync<Student>(studentId);
+        var student = await Fixture.ExecuteDbContextAsync(db => db.Students
+            .Where(s => s.LastName == "Schmoe" && s.FirstMidName == "Joe")
+            .FirstOrDefaultAsync());
 
         student.ShouldNotBeNull();
-        student.FirstMidName.ShouldBe(cmd.FirstMidName);
-        student.LastName.ShouldBe(cmd.LastName);
-        student.EnrollmentDate.ShouldBe(cmd.EnrollmentDate.GetValueOrDefault());
+        student.FirstMidName.ShouldBe(dto.FirstMidName);
+        student.LastName.ShouldBe(dto.LastName);
+        student.EnrollmentDate.ShouldBe(dto.EnrollmentDate.GetValueOrDefault());
     }
 }

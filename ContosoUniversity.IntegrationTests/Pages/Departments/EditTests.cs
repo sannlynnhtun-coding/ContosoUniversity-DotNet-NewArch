@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Departments;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
@@ -11,91 +10,84 @@ using Xunit;
 namespace ContosoUniversity.IntegrationTests.Pages.Departments;
 
 [Collection(nameof(SliceFixture))]
-public class EditTests
+public class EditTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public EditTests(SliceFixture fixture) => _fixture = fixture;
+    public EditTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_edit_department_details()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
-        await _fixture.InsertAsync(dept);
+        await Fixture.InsertAsync(dept);
 
-        var query = new Edit.Query
-        {
-            Id = dept.Id
-        };
-
-        var result = await _fixture.SendAsync(query);
+        var result = await Fixture.ExecuteServiceAsync<IDepartmentService, DepartmentEditDto>(s => 
+            s.GetDepartmentForEditAsync(dept.Id));
 
         result.ShouldNotBeNull();
         result.Name.ShouldBe(dept.Name);
-        result.Administrator.Id.ShouldBe(adminId);
+        result.InstructorId.ShouldBe(admin.Id);
     }
 
     [Fact]
     public async Task Should_edit_department()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin1 = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
-
-        var admin2Id = await _fixture.SendAsync(new CreateEdit.Command
+        };
+        var admin2 = new Instructor
         {
-            FirstMidName = "George",
-            LastName = "Costanza",
+            FirstMidName = "Jerry",
+            LastName = "Seinfeld",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin1, admin2);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin1.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
-        await _fixture.InsertAsync(dept);
+        await Fixture.InsertAsync(dept);
 
-        Edit.Command command = null;
-        await _fixture.ExecuteDbContextAsync(async (ctxt, mediator) =>
+        var dto = new DepartmentEditDto
         {
-            var admin2 = await _fixture.FindAsync<Instructor>(admin2Id);
+            Id = dept.Id,
+            Name = "English",
+            InstructorId = admin2.Id,
+            StartDate = DateTime.Today.AddDays(-1),
+            Budget = 456m,
+            RowVersion = dept.RowVersion
+        };
 
-            command = new Edit.Command
-            {
-                Id = dept.Id,
-                Name = "English",
-                Administrator = admin2,
-                StartDate = DateTime.Today.AddDays(-1),
-                Budget = 456m
-            };
+        await Fixture.ExecuteServiceAsync<IDepartmentService>(s => s.UpdateDepartmentAsync(dto));
 
-            await mediator.Send(command);
-        });
+        var result = await Fixture.ExecuteDbContextAsync(db => db.Departments
+            .Where(d => d.Id == dept.Id)
+            .Include(d => d.Administrator)
+            .SingleOrDefaultAsync());
 
-        var result = await _fixture.ExecuteDbContextAsync(db => db.Departments.Where(d => d.Id == dept.Id).Include(d => d.Administrator).SingleOrDefaultAsync());
-
-        result.Name.ShouldBe(command.Name);
-        result.Administrator.Id.ShouldBe(command.Administrator.Id);
-        result.StartDate.ShouldBe(command.StartDate.GetValueOrDefault());
-        result.Budget.ShouldBe(command.Budget.GetValueOrDefault());
+        result.Name.ShouldBe(dto.Name);
+        result.Administrator.Id.ShouldBe(admin2.Id);
+        result.StartDate.ShouldBe(dto.StartDate);
+        result.Budget.ShouldBe(dto.Budget);
     }
 }

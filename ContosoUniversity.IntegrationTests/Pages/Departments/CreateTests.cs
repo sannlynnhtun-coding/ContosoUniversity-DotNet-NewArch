@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Pages.Departments;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
@@ -10,45 +10,40 @@ using Xunit;
 namespace ContosoUniversity.IntegrationTests.Pages.Departments;
 
 [Collection(nameof(SliceFixture))]
-public class CreateTests
+public class CreateTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public CreateTests(SliceFixture fixture) => _fixture = fixture;
-
+    public CreateTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_create_new_department()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var departmentName = "Engineering_" + suffix;
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
-        Create.Command command = null;
-
-        await _fixture.ExecuteDbContextAsync(async (db, mediator) =>
+        var dto = new DepartmentEditDto
         {
-            var admin = await db.Instructors.FindAsync(adminId);
+            Budget = 10m,
+            Name = departmentName,
+            StartDate = DateTime.Now.Date,
+            InstructorId = admin.Id
+        };
 
-            command = new Create.Command
-            {
-                Budget = 10m,
-                Name = "Engineering",
-                StartDate = DateTime.Now.Date,
-                Administrator = admin
-            };
+        await Fixture.ExecuteServiceAsync<IDepartmentService>(s => s.CreateDepartmentAsync(dto));
 
-            await mediator.Send(command);
-        });
-
-        var created = await _fixture.ExecuteDbContextAsync(db => db.Departments.Where(d => d.Name == command.Name).SingleOrDefaultAsync());
+        var created = await Fixture.ExecuteDbContextAsync(db => db.Departments
+            .Where(d => d.Name == departmentName)
+            .SingleOrDefaultAsync());
 
         created.ShouldNotBeNull();
-        created.Budget.ShouldBe(command.Budget.GetValueOrDefault());
-        created.StartDate.ShouldBe(command.StartDate.GetValueOrDefault());
-        created.InstructorId.ShouldBe(adminId);
+        created.Budget.ShouldBe(dto.Budget);
+        created.StartDate.ShouldBe(dto.StartDate);
+        created.InstructorId.ShouldBe(admin.Id);
     }
 }

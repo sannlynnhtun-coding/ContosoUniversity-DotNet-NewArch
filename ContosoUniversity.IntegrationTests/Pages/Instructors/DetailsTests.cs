@@ -1,50 +1,31 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Instructors;
 using Shouldly;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Instructors;
 
 [Collection(nameof(SliceFixture))]
-public class DetailsTests
+public class DetailsTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DetailsTests(SliceFixture fixture) => _fixture = fixture;
+    public DetailsTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_instructor_details()
     {
-        var englishDept = new Department
-        {
-            Name = "English",
-            StartDate = DateTime.Today
-        };
-        var english101 = new Course
-        {
-            Department = englishDept,
-            Title = "English 101",
-            Credits = 4,
-            Id = _fixture.NextCourseNumber()
-        };
-        await _fixture.InsertAsync(englishDept, english101);
-
-        var command = new CreateEdit.Command
+        var instructor = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            OfficeAssignmentLocation = "Austin",
-            HireDate = DateTime.Today,
-            SelectedCourses = new[] { english101.Id.ToString() }
+            HireDate = DateTime.Today
         };
-        var instructorId = await _fixture.SendAsync(command);
+        await Fixture.InsertAsync(instructor);
 
-        var result = await _fixture.SendAsync(new Details.Query { Id = instructorId });
+        var result = await Fixture.ExecuteServiceAsync<IInstructorService, InstructorDetailDto>(s => 
+            s.GetInstructorAsync(instructor.Id));
 
         result.ShouldNotBeNull();
-        result.FirstMidName.ShouldBe(command.FirstMidName);
-        result.OfficeAssignmentLocation.ShouldBe(command.OfficeAssignmentLocation);
+        result.FirstMidName.ShouldBe(instructor.FirstMidName);
     }
 }

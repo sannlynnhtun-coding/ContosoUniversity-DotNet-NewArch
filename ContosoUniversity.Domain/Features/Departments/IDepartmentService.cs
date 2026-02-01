@@ -11,4 +11,5 @@ public interface IDepartmentService
     Task CreateDepartmentAsync(DepartmentEditDto departmentDto);
     Task UpdateDepartmentAsync(DepartmentEditDto departmentDto);
     Task DeleteDepartmentAsync(int id);
+    Task<DepartmentEditDto> GetDepartmentForEditAsync(int id);
 }

@@ -1,64 +1,51 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Students;
+using ContosoUniversity.Domain.Features.Students;
+using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Students;
 
 [Collection(nameof(SliceFixture))]
-public class DeleteTests
+public class DeleteTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DeleteTests(SliceFixture fixture) => _fixture = fixture;
+    public DeleteTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_delete_details()
     {
-        var cmd = new Create.Command
+        var student = new Student
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = DateTime.Today
         };
+        await Fixture.InsertAsync(student);
 
-        var studentId = await _fixture.SendAsync(cmd);
+        var result = await Fixture.ExecuteServiceAsync<IStudentService, StudentDetailDto>(s => 
+            s.GetStudentAsync(student.Id));
 
-        var query = new Delete.Query
-        {
-            Id = studentId
-        };
-
-        var result = await _fixture.SendAsync(query);
-
-        result.FirstMidName.ShouldBe(cmd.FirstMidName);
-        result.LastName.ShouldBe(cmd.LastName);
-        result.EnrollmentDate.ShouldBe(cmd.EnrollmentDate.GetValueOrDefault());
+        result.FirstMidName.ShouldBe(student.FirstMidName);
+        result.LastName.ShouldBe(student.LastName);
+        result.EnrollmentDate.ShouldBe(student.EnrollmentDate);
     }
 
     [Fact]
     public async Task Should_delete_student()
     {
-        var createCommand = new Create.Command
+        var student = new Student
         {
             FirstMidName = "Joe",
             LastName = "Schmoe",
             EnrollmentDate = DateTime.Today
         };
+        await Fixture.InsertAsync(student);
 
-        var studentId = await _fixture.SendAsync(createCommand);
+        await Fixture.ExecuteServiceAsync<IStudentService>(s => s.DeleteStudentAsync(student.Id));
 
-        var deleteCommand = new Delete.Command
-        {
-            Id = studentId
-        };
+        var dbStudent = await Fixture.FindAsync<Student>(student.Id);
 
-        await _fixture.SendAsync(deleteCommand);
-
-        var student = await _fixture.FindAsync<Student>(studentId);
-
-        student.ShouldBeNull();
+        dbStudent.ShouldBeNull();
     }
 }

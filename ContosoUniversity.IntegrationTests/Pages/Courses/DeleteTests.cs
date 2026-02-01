@@ -1,37 +1,35 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
-using Delete = ContosoUniversity.Pages.Courses.Delete;
-
 
 namespace ContosoUniversity.IntegrationTests.Pages.Courses;
 
 [Collection(nameof(SliceFixture))]
-public class DeleteTests
+public class DeleteTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public DeleteTests(SliceFixture fixture) => _fixture = fixture;
+    public DeleteTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_query_for_command()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
@@ -40,13 +38,14 @@ public class DeleteTests
         {
             Credits = 4,
             Department = dept,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "English 101"
         };
 
-        await _fixture.InsertAsync(dept, course);
+        await Fixture.InsertAsync(dept, course);
 
-        var result = await _fixture.SendAsync(new Delete.Query { Id = course.Id });
+        var result = await Fixture.ExecuteServiceAsync<ICourseService, CourseDetailDto>(s => 
+            s.GetCourseAsync(course.Id));
 
         result.ShouldNotBeNull();
         result.Credits.ShouldBe(course.Credits);
@@ -57,17 +56,18 @@ public class DeleteTests
     [Fact]
     public async Task Should_delete()
     {
-        var adminId = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(admin);
 
         var dept = new Department
         {
             Name = "History",
-            InstructorId = adminId,
+            InstructorId = admin.Id,
             Budget = 123m,
             StartDate = DateTime.Today
         };
@@ -76,15 +76,15 @@ public class DeleteTests
         {
             Credits = 4,
             Department = dept,
-            Id = _fixture.NextCourseNumber(),
+            Id = Fixture.NextCourseNumber(),
             Title = "English 101"
         };
 
-        await _fixture.InsertAsync(dept, course);
+        await Fixture.InsertAsync(dept, course);
 
-        await _fixture.SendAsync(new Delete.Command { Id = course.Id });
+        await Fixture.ExecuteServiceAsync<ICourseService>(s => s.DeleteCourseAsync(course.Id));
 
-        var result = await _fixture.ExecuteDbContextAsync(db => db.Courses.Where(c => c.Id == course.Id).SingleOrDefaultAsync());
+        var result = await Fixture.FindAsync<Course>(course.Id);
 
         result.ShouldBeNull();
     }

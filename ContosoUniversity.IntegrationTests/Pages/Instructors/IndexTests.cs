@@ -1,20 +1,21 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Models;
-using ContosoUniversity.Pages.Instructors;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Enrollments;
+using ContosoUniversity.Domain.Features.Instructors;
+using ContosoUniversity.Domain.Features.Students;
 using Shouldly;
 using Xunit;
-using Index = ContosoUniversity.Pages.Instructors.Index;
 
 namespace ContosoUniversity.IntegrationTests.Pages.Instructors;
 
 [Collection(nameof(SliceFixture))]
-public class IndexTests
+public class IndexTests : SliceTestBase
 {
-    private readonly SliceFixture _fixture;
-
-    public IndexTests(SliceFixture fixture) => _fixture = fixture;
+    public IndexTests(SliceFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_get_list_instructor_with_details()
@@ -24,39 +25,46 @@ public class IndexTests
             Name = "English",
             StartDate = DateTime.Today
         };
+        await Fixture.InsertAsync(englishDept);
+
         var english101 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 101",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
         var english201 = new Course
         {
-            Department = englishDept,
+            DepartmentId = englishDept.Id,
             Title = "English 201",
             Credits = 4,
-            Id = _fixture.NextCourseNumber()
+            Id = Fixture.NextCourseNumber()
         };
 
-        await _fixture.InsertAsync(englishDept, english101, english201);
+        await Fixture.InsertAsync(english101, english201);
 
-        var instructor1Id = await _fixture.SendAsync(new CreateEdit.Command
+        var admin = new Instructor
         {
             FirstMidName = "George",
             LastName = "Costanza",
-            SelectedCourses = new[] { english101.Id.ToString(), english201.Id.ToString() },
-            HireDate = DateTime.Today,
-            OfficeAssignmentLocation = "Austin"
-        });
+            HireDate = DateTime.Today
+        };
+        await Fixture.InsertAsync(admin);
+        
+        // Add course assignments manually since we don't have a direct service for that in the test fixture yet
+        await Fixture.InsertAsync(
+            new CourseAssignment { CourseId = english101.Id, InstructorId = admin.Id },
+            new CourseAssignment { CourseId = english201.Id, InstructorId = admin.Id }
+        );
 
-        var instructor2Id = await _fixture.SendAsync(new CreateEdit.Command
+        var instructor2 = new Instructor
         {
-            OfficeAssignmentLocation = "Houston",
             FirstMidName = "Jerry",
             LastName = "Seinfeld",
             HireDate = DateTime.Today
-        });
+        };
+        await Fixture.InsertAsync(instructor2);
 
         var student1 = new Student
         {
@@ -71,27 +79,32 @@ public class IndexTests
             EnrollmentDate = DateTime.Today
         };
 
-        await _fixture.InsertAsync(student1, student2);
+        await Fixture.InsertAsync(student1, student2);
 
         var enrollment1 = new Enrollment { StudentId = student1.Id, CourseId = english101.Id };
         var enrollment2 = new Enrollment { StudentId = student2.Id, CourseId = english101.Id };
 
-        await _fixture.InsertAsync(enrollment1, enrollment2);
+        await Fixture.InsertAsync(enrollment1, enrollment2);
 
-        var result = await _fixture.SendAsync(new Index.Query { Id = instructor1Id, CourseId = english101.Id });
+        // Test Instructors
+        var instructors = await Fixture.ExecuteServiceAsync<IInstructorService, List<InstructorListDto>>(s => 
+            s.GetInstructorsAsync());
 
-        result.ShouldNotBeNull();
+        instructors.ShouldNotBeNull();
+        instructors.Count.ShouldBeGreaterThanOrEqualTo(2);
+        instructors.Select(i => i.Id).ShouldContain(admin.Id);
+        instructors.Select(i => i.Id).ShouldContain(instructor2.Id);
 
-        result.Instructors.ShouldNotBeNull();
-        result.Instructors.Count.ShouldBeGreaterThanOrEqualTo(2);
-        result.Instructors.Select(i => i.Id).ShouldContain(instructor1Id);
-        result.Instructors.Select(i => i.Id).ShouldContain(instructor2Id);
+        // Test Courses for Selected Instructor
+        var selectedInstructor = instructors.FirstOrDefault(i => i.Id == admin.Id);
+        selectedInstructor.ShouldNotBeNull();
+        selectedInstructor.CourseAssignments.Count().ShouldBe(2);
 
-        result.Courses.ShouldNotBeNull();
-        result.Courses.Count.ShouldBe(2);
+        // Test Enrollments for Selected Course
+        var enrollments = await Fixture.ExecuteServiceAsync<IEnrollmentService, List<EnrollmentListDto>>(s => 
+            s.GetEnrollmentsForCourseAsync(english101.Id));
 
-        result.Enrollments.ShouldNotBeNull();
-        result.Enrollments.Count.ShouldBe(2);
+        enrollments.ShouldNotBeNull();
+        enrollments.Count.ShouldBe(2);
     }
-
 }
