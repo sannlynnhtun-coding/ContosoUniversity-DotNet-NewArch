@@ -12,12 +12,24 @@
 <div class="row">
     <div class="col-md-4">
         <form method="post">
-            @Html.ValidationDiv()
-            @Html.Input(m => m.Data.Id)
-            @Html.FormBlock(m => m.Data.LastName)
-            @Html.FormBlock(m => m.Data.FirstMidName)
-            @Html.FormBlock(m => m.Data.EnrollmentDate)
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Data.Id" />
             <div class="form-group">
+                <label asp-for="Data.LastName" class="control-label"></label>
+                <input asp-for="Data.LastName" class="form-control" />
+                <span asp-validation-for="Data.LastName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Data.FirstMidName" class="control-label"></label>
+                <input asp-for="Data.FirstMidName" class="form-control" />
+                <span asp-validation-for="Data.FirstMidName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Data.EnrollmentDate" class="control-label"></label>
+                <input asp-for="Data.EnrollmentDate" class="form-control" />
+                <span asp-validation-for="Data.EnrollmentDate" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-3">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
         </form>

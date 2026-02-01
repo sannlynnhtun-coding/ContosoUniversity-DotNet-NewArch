@@ -1,108 +1,80 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
-using FluentValidation;
-using MediatR;
+﻿using System.Threading.Tasks;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace ContosoUniversity.Pages.Departments;
 
 public class Edit : PageModel
 {
-    private readonly IMediator _mediator;
+    private readonly IDepartmentService _departmentService;
+    private readonly IInstructorService _instructorService;
+
+    public Edit(IDepartmentService departmentService, IInstructorService instructorService)
+    {
+        _departmentService = departmentService;
+        _instructorService = instructorService;
+    }
 
     [BindProperty]
-    public Command Data { get; set; }
+    public DepartmentEditDto Data { get; set; }
 
-    public Edit(IMediator mediator) => _mediator = mediator;
+    public SelectList Instructors { get; set; }
 
-    public async Task OnGetAsync(Query query)
-        => Data = await _mediator.Send(query);
-
-    public async Task<ActionResult> OnPostAsync(int id)
+    public async Task<IActionResult> OnGetAsync(int id)
     {
-        await _mediator.Send(Data);
-
-        return this.RedirectToPageJson("Index");
-    }
-
-    public record Query : IRequest<Command>
-    {
-        public int Id { get; init; }
-    }
-
-    public record Command : IRequest
-    {
-        public string Name { get; init; }
-
-        public decimal? Budget { get; init; }
-
-        public DateTime? StartDate { get; init; }
-
-        public Instructor Administrator { get; init; }
-        public int Id { get; init; }
-        public byte[] RowVersion { get; init; }
-    }
-
-    public class Validator : AbstractValidator<Command>
-    {
-        public Validator()
+        var department = await _departmentService.GetDepartmentAsync(id);
+        if (department == null)
         {
-            RuleFor(m => m.Name).NotNull().Length(3, 50);
-            RuleFor(m => m.Budget).NotNull();
-            RuleFor(m => m.StartDate).NotNull();
-            RuleFor(m => m.Administrator).NotNull();
-        }
-    }
-
-    public class MappingProfile : Profile
-    {
-        public MappingProfile() => CreateProjection<Department, Command>();
-    }
-
-    public class QueryHandler : IRequestHandler<Query, Command>
-    {
-        private readonly SchoolContext _db;
-        private readonly IConfigurationProvider _configuration;
-
-        public QueryHandler(SchoolContext db, 
-            IConfigurationProvider configuration)
-        {
-            _db = db;
-            _configuration = configuration;
+            return NotFound();
         }
 
-        public async Task<Command> Handle(Query message, 
-            CancellationToken token) => await _db
-            .Departments
-            .Where(d => d.Id == message.Id)
-            .ProjectTo<Command>(_configuration)
-            .SingleOrDefaultAsync(token);
+        Data = new DepartmentEditDto
+        {
+            Id = department.Id,
+            Name = department.Name,
+            Budget = department.Budget,
+            StartDate = department.StartDate,
+            InstructorId = department.InstructorId,
+            RowVersion = department.RowVersion
+        };
+
+        await PopulateInstructorsDropDownList(department.InstructorId);
+        return Page();
     }
 
-    public class CommandHandler : IRequestHandler<Command>
+    public async Task<IActionResult> OnPostAsync()
     {
-        private readonly SchoolContext _db;
-
-        public CommandHandler(SchoolContext db) => _db = db;
-
-        public async Task Handle(Command message, 
-            CancellationToken token)
+        if (!ModelState.IsValid)
         {
-            var dept = await _db.Departments.FindAsync(message.Id);
-
-            dept.Name = message.Name;
-            dept.StartDate = message.StartDate!.Value;
-            dept.Budget = message.Budget!.Value;
-            dept.RowVersion = message.RowVersion;
-            dept.Administrator = await _db.Instructors.FindAsync(message.Administrator.Id);
+            await PopulateInstructorsDropDownList(Data.InstructorId);
+            return Page();
         }
+
+        try
+        {
+            await _departmentService.UpdateDepartmentAsync(Data);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Simplified handling for now. 
+            // In a full implementation, we'd reload the entity, show "Current Value" vs "Your Value".
+            ModelState.AddModelError(string.Empty, "The record you attempted to edit "
+              + "was modified by another user after you got the original value. The "
+              + "edit operation was canceled.");
+            await PopulateInstructorsDropDownList(Data.InstructorId);
+            return Page();
+        }
+
+        return RedirectToPage("./Index");
+    }
+
+    private async Task PopulateInstructorsDropDownList(object selectedInstructor = null)
+    {
+        var instructors = await _instructorService.GetInstructorNamesAsync();
+        Instructors = new SelectList(instructors, "Id", "FullName", selectedInstructor);
     }
 }

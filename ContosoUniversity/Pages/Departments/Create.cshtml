@@ -12,11 +12,29 @@
 <div class="row">
     <div class="col-md-4">
         <form method="post">
-            @Html.ValidationDiv()
-            @Html.FormBlock(m => m.Data.Name)
-            @Html.FormBlock(m => m.Data.Budget)
-            @Html.FormBlock(m => m.Data.StartDate)
-            @Html.FormBlock(m => m.Data.Administrator)
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Data.Name" class="control-label"></label>
+                <input asp-for="Data.Name" class="form-control" />
+                <span asp-validation-for="Data.Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Data.Budget" class="control-label"></label>
+                <input asp-for="Data.Budget" class="form-control" />
+                <span asp-validation-for="Data.Budget" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Data.StartDate" class="control-label"></label>
+                <input asp-for="Data.StartDate" class="form-control" />
+                <span asp-validation-for="Data.StartDate" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Data.InstructorId" class="control-label">Administrator</label>
+                <select asp-for="Data.InstructorId" class="form-control" asp-items="Model.Instructors">
+                    <option value="">-- Select Administrator --</option>
+                </select>
+                <span asp-validation-for="Data.InstructorId" class="text-danger"></span>
+            </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
             </div>

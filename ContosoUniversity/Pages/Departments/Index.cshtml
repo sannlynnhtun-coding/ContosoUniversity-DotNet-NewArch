@@ -21,21 +21,21 @@
         </tr>
     </thead>
     <tbody>
-        @{ int i = 0; }
+    <tbody>
         @foreach (var item in Model.Data)
         {
             <tr>
                 <td>
-                    @Html.Display(modelItem => modelItem.Data[i].Name)
+                    @item.Name
                 </td>
                 <td>
-                    @Html.Display(modelItem => modelItem.Data[i].Budget)
+                    @item.Budget
                 </td>
                 <td>
-                    @Html.Display(modelItem => modelItem.Data[i].StartDate)
+                    @item.StartDate
                 </td>
                 <td>
-                    @Html.Display(modelItem => modelItem.Data[i].AdministratorFullName)
+                    @item.AdministratorName
                 </td>
                 <td>
                     <a asp-page="Edit" asp-route-id="@item.Id">Edit</a> |
@@ -43,7 +43,6 @@
                     <a asp-page="Delete" asp-route-id="@item.Id">Delete</a>
                 </td>
             </tr>
-            i++;
         }
     </tbody>
 </table>

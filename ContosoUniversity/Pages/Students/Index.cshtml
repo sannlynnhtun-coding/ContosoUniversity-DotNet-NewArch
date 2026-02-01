@@ -43,16 +43,16 @@
         {
             <tr>
                 <td>
-                    <display-tag for="Data.Results[i].LastName"/>
+                    @Html.DisplayFor(modelItem => item.LastName)
                 </td>
                 <td>
-                    <display-tag for="Data.Results[i].FirstMidName" />
+                    @Html.DisplayFor(modelItem => item.FirstMidName)
                 </td>
                 <td>
-                    <display-tag for="Data.Results[i].EnrollmentDate" />
+                    @Html.DisplayFor(modelItem => item.EnrollmentDate)
                 </td>
                 <td>
-                    <display-tag for="Data.Results[i].EnrollmentsCount" />
+                    @Html.DisplayFor(modelItem => item.EnrollmentsCount)
                 </td>
                 <td>
                     <a asp-page="Edit" asp-route-id="@item.Id">Edit</a> |

@@ -1,0 +1,6 @@
+@ContosoUniversity.Api_HostAddress = http://localhost:5124
+
+GET {{ContosoUniversity.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

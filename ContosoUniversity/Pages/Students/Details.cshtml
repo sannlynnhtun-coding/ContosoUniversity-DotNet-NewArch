@@ -12,25 +12,25 @@
     <hr />
     <dl class="dl-horizontal">
         <dt>
-            <display-label-tag for="Data.LastName"/>
+            @Html.DisplayNameFor(model => model.Data.LastName)
         </dt>
         <dd>
-            <display-tag for="Data.LastName"/>
+            @Model.Data.LastName
         </dd>
         <dt>
-            <display-label-tag for="Data.FirstMidName" />
+            @Html.DisplayNameFor(model => model.Data.FirstMidName)
         </dt>
         <dd>
-            <display-tag for="Data.FirstMidName" />
+            @Model.Data.FirstMidName
         </dd>
         <dt>
-            <display-label-tag for="Data.EnrollmentDate" />
+            @Html.DisplayNameFor(model => model.Data.EnrollmentDate)
         </dt>
         <dd>
-            <display-tag for="Data.EnrollmentDate" />
+            @Model.Data.EnrollmentDate
         </dd>
         <dt>
-            <display-label-tag for="Data.Enrollments" />
+            Enrollments
         </dt>
         <dd>
             <table class="table">
@@ -38,14 +38,14 @@
                     <th>Course Title</th>
                     <th>Grade</th>
                 </tr>
-                @for (var i = 0; i < Model.Data.Enrollments.Count; i++)
+                @foreach (var enrollment in Model.Data.Enrollments)
                 {
                     <tr>
                         <td>
-                            <display-tag for="Data.Enrollments[i].CourseTitle" />
+                            @enrollment.CourseTitle
                         </td>
                         <td>
-                            <display-tag for="Data.Enrollments[i].Grade" />
+                            @enrollment.Grade
                         </td>
                     </tr>
                 }

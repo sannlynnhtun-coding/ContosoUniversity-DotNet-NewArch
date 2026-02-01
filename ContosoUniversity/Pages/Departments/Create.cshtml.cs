@@ -1,81 +1,51 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Threading;
+﻿using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
-using FluentValidation;
-using MediatR;
+using ContosoUniversity.Domain.Features.Departments;
+using ContosoUniversity.Domain.Features.Instructors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ContosoUniversity.Pages.Departments;
 
 public class Create : PageModel
 {
-    private readonly IMediator _mediator;
+    private readonly IDepartmentService _departmentService;
+    private readonly IInstructorService _instructorService;
+
+    public Create(IDepartmentService departmentService, IInstructorService instructorService)
+    {
+        _departmentService = departmentService;
+        _instructorService = instructorService;
+    }
+
+    public SelectList Instructors { get; set; }
 
     [BindProperty]
-    public Command Data { get; set; }
+    public DepartmentEditDto Data { get; set; }
 
-    public Create(IMediator mediator) => _mediator = mediator;
-
-    public async Task<ActionResult> OnPostAsync()
+    public async Task<IActionResult> OnGetAsync()
     {
-        await _mediator.Send(Data);
-
-        return this.RedirectToPageJson("Index");
+        await PopulateInstructorsDropDownList();
+        return Page();
     }
 
-    public class Validator : AbstractValidator<Command>
+    public async Task<IActionResult> OnPostAsync()
     {
-        public Validator()
+        if (!ModelState.IsValid)
         {
-            RuleFor(m => m.Name).NotNull().Length(3, 50);
-            RuleFor(m => m.Budget).NotNull();
-            RuleFor(m => m.StartDate).NotNull();
-            RuleFor(m => m.Administrator).NotNull();
+            await PopulateInstructorsDropDownList();
+            return Page();
         }
+
+        await _departmentService.CreateDepartmentAsync(Data);
+
+        return RedirectToPage("./Index");
     }
 
-    public record Command : IRequest<int>
+    private async Task PopulateInstructorsDropDownList(object selectedInstructor = null)
     {
-        [StringLength(50, MinimumLength = 3)]
-        public string Name { get; init; }
-
-        [DataType(DataType.Currency)]
-        [Column(TypeName = "money")]
-        public decimal? Budget { get; init; }
-
-        [DataType(DataType.Date)]
-        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
-        public DateTime? StartDate { get; init; }
-
-        public Instructor Administrator { get; init; }
-    }
-
-    public class CommandHandler : IRequestHandler<Command, int>
-    {
-        private readonly SchoolContext _db;
-
-        public CommandHandler(SchoolContext db) => _db = db;
-
-        public async Task<int> Handle(Command message, CancellationToken token)
-        {
-            var department = new Department
-            {
-                Administrator = message.Administrator,
-                Budget = message.Budget!.Value,
-                Name = message.Name,
-                StartDate = message.StartDate!.Value
-            };
-
-            await _db.Departments.AddAsync(department, token);
-
-            await _db.SaveChangesAsync(token);
-
-            return department.Id;
-        }
+        var instructors = await _instructorService.GetInstructorNamesAsync();
+        Instructors = new SelectList(instructors, "Id", "FullName", selectedInstructor);
     }
 }

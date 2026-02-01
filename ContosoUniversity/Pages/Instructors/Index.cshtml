@@ -1,4 +1,4 @@
-﻿@page
+﻿@page "{id:int?}"
 @model Instructors.Index
 
 @{
@@ -22,33 +22,30 @@
         </tr>
     </thead>
     <tbody>
-        @{ int i = 0; }
-        @foreach (var item in Model.Data.Instructors)
+        @foreach (var item in Model.Instructors)
         {
             string selectedRow = "";
-            if (item.Id == Model.Data.InstructorId)
+            if (item.Id == Model.InstructorId)
             {
                 selectedRow = "table-success";
             }
             <tr class="@selectedRow">
                 <td>
-                    <display-tag for="Data.Instructors[i].LastName" />
+                    @item.LastName
                 </td>
                 <td>
-                    <display-tag for="Data.Instructors[i].FirstMidName" />
+                    @item.FirstMidName
                 </td>
                 <td>
-                    <display-tag for="Data.Instructors[i].HireDate" />
+                    @item.HireDate.ToShortDateString()
                 </td>
                 <td>
-                    <display-tag for="Data.Instructors[i].OfficeAssignmentLocation" />
+                    @item.OfficeAssignmentLocation
                 </td>
                 <td>
-                    @{
-                        foreach (var course in item.CourseAssignments)
-                        {
-                            @course.CourseId @:  @course.CourseTitle <br />
-                        }
+                    @foreach (var course in item.CourseAssignments)
+                    {
+                        @course.CourseId @:  @course.CourseTitle <br />
                     }
                 </td>
                 <td>
@@ -58,12 +55,11 @@
                     <a asp-page="Delete" asp-route-id="@item.Id">Delete</a>
                 </td>
             </tr>
-            i++;
         }
     </tbody>
 </table>
 
-@if (Model.Data.Courses.Any())
+@if (Model.Courses != null)
 {
     <h3>Courses Taught by Selected Instructor</h3>
     <table class="table">
@@ -74,22 +70,22 @@
             <th>Department</th>
         </tr>
 
-        @foreach (var item in Model.Data.Courses)
+        @foreach (var item in Model.Courses)
         {
             string selectedRow = "";
-            if (item.Id == Model.Data.CourseId)
+            if (item.CourseId == Model.CourseId)
             {
                 selectedRow = "table-success";
             }
             <tr class="@selectedRow">
                 <td>
-                    <a asp-page="Index" asp-route-id="@Model.Data.InstructorId" asp-route-courseID="@item.Id">Select</a>
+                    <a asp-page="Index" asp-route-id="@Model.InstructorId" asp-route-courseId="@item.CourseId">Select</a>
                 </td>
                 <td>
-                    @item.Id
+                    @item.CourseId
                 </td>
                 <td>
-                    @item.Title
+                    @item.CourseTitle
                 </td>
                 <td>
                     @item.DepartmentName
@@ -99,7 +95,8 @@
 
     </table>
 }
-@if (Model.Data.Enrollments.Any())
+
+@if (Model.Enrollments != null)
 {
     <h3>
         Students Enrolled in Selected Course
@@ -109,18 +106,16 @@
             <th>Name</th>
             <th>Grade</th>
         </tr>
-        @{ i = 0; }
-        @foreach (var item in Model.Data.Enrollments)
+        @foreach (var item in Model.Enrollments)
         {
             <tr>
                 <td>
                     @item.StudentFullName
                 </td>
                 <td>
-                    <display-tag for="Data.Enrollments[i].Grade" />
+                    @item.Grade
                 </td>
             </tr>
-            i++;
         }
     </table>
-            }
+}

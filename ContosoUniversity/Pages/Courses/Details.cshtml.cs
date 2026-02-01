@@ -1,70 +1,29 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
-using FluentValidation;
-using MediatR;
+﻿using System.Threading.Tasks;
+using ContosoUniversity.Domain.Features.Courses;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace ContosoUniversity.Pages.Courses;
 
 public class Details : PageModel
 {
-    private readonly IMediator _mediator;
+    private readonly ICourseService _courseService;
 
-    public Details(IMediator mediator) => _mediator = mediator;
-
-    public Model Data { get; private set; }
-
-    public async Task OnGetAsync(Query query) => Data = await _mediator.Send(query);
-
-    public record Query : IRequest<Model>
+    public Details(ICourseService courseService)
     {
-        public int? Id { get; init; }
+        _courseService = courseService;
     }
 
-    public class Validator : AbstractValidator<Query>
+    public CourseDetailDto Data { get; private set; }
+
+    public async Task<IActionResult> OnGetAsync(int id)
     {
-        public Validator()
+        Data = await _courseService.GetCourseAsync(id);
+
+        if (Data == null)
         {
-            RuleFor(m => m.Id).NotNull();
+            return NotFound();
         }
-    }
-
-    public record Model
-    {
-        public int Id { get; init; }
-        public string Title { get; init; }
-        public int Credits { get; init; }
-        [Display(Name = "Department")]
-        public string DepartmentName { get; init; }
-    }
-
-    public class MappingProfile : Profile
-    {
-        public MappingProfile() => CreateProjection<Course, Model>();
-    }
-
-    public class QueryHandler : IRequestHandler<Query, Model>
-    {
-        private readonly SchoolContext _db;
-        private readonly IConfigurationProvider _configuration;
-
-        public QueryHandler(SchoolContext db, IConfigurationProvider configuration)
-        {
-            _db = db;
-            _configuration = configuration;
-        }
-
-        public Task<Model> Handle(Query message, CancellationToken token) => 
-            _db.Courses
-                .Where(i => i.Id == message.Id)
-                .ProjectTo<Model>(_configuration)
-                .SingleOrDefaultAsync(token);
+        return Page();
     }
 }

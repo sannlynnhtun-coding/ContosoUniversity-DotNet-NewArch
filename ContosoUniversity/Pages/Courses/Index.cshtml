@@ -30,20 +30,20 @@
     </thead>
     <tbody>
         @{ int i = 0;}
-        @foreach (var item in Model.Data.Courses)
+        @foreach (var item in Model.Courses)
         {
             <tr>
                 <td>
-                    <display-tag for="Data.Courses[i].Id"/>
+                    @item.Id
                 </td>
                 <td>
-                    <display-tag for="Data.Courses[i].Title" />
+                    @item.Title
                 </td>
                 <td>
-                    <display-tag for="Data.Courses[i].Credits" />
+                    @item.Credits
                 </td>
                 <td>
-                    <display-tag for="Data.Courses[i].DepartmentName" />
+                    @item.DepartmentName
                 </td>
                 <td>
                     <a asp-page="Edit" asp-route-id="@item.Id">Edit</a> |

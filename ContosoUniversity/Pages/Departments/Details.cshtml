@@ -12,28 +12,28 @@
     <hr />
     <dl class="dl-horizontal">
         <dt>
-            <display-label-tag for="Data.Name" />
+            @Html.DisplayNameFor(model => model.Data.Name)
         </dt>
         <dd>
-            <display-tag for="Data.Name" />
+            @Model.Data.Name
         </dd>
         <dt>
-            <display-label-tag for="Data.Budget" />
+            @Html.DisplayNameFor(model => model.Data.Budget)
         </dt>
         <dd>
-            <display-tag for="Data.Budget" />
+            @Model.Data.Budget
         </dd>
         <dt>
-            <display-label-tag for="Data.StartDate" />
+            @Html.DisplayNameFor(model => model.Data.StartDate)
         </dt>
         <dd>
-            <display-tag for="Data.StartDate" />
+            @Model.Data.StartDate
         </dd>
         <dt>
-            <display-label-tag for="Data.AdministratorFullName" />
+            Administrator
         </dt>
         <dd>
-            <display-tag for="Data.AdministratorFullName" />
+            @Model.Data.AdministratorName
         </dd>
     </dl>
 </div>

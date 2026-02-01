@@ -1,13 +1,5 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
-using MediatR;
+﻿using System.Threading.Tasks;
+using ContosoUniversity.Domain.Features.Departments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -16,78 +8,39 @@ namespace ContosoUniversity.Pages.Departments;
 
 public class Delete : PageModel
 {
-    private readonly IMediator _mediator;
+    private readonly IDepartmentService _departmentService;
 
-    public Delete(IMediator mediator) => _mediator = mediator;
+    public Delete(IDepartmentService departmentService)
+    {
+        _departmentService = departmentService;
+    }
 
     [BindProperty]
-    public Command Data { get; set; }
+    public DepartmentDetailDto Data { get; set; }
 
-    public async Task OnGetAsync(Query query)
-        => Data = await _mediator.Send(query);
-
-    public async Task<ActionResult> OnPostAsync()
+    public async Task<IActionResult> OnGetAsync(int id)
     {
-        await _mediator.Send(Data);
+        Data = await _departmentService.GetDepartmentAsync(id);
 
-        return this.RedirectToPageJson("Index");
-    }
-
-    public record Query : IRequest<Command>
-    {
-        public int Id { get; init; }
-    }
-
-    public record Command : IRequest
-    {
-        public string Name { get; init; }
-
-        public decimal Budget { get; init; }
-
-        public DateTime StartDate { get; init; }
-
-        public int Id { get; init; }
-
-        [Display(Name = "Administrator")]
-        public string AdministratorFullName { get; init; }
-
-        public byte[] RowVersion { get; init; }
-    }
-
-    public class MappingProfile : Profile
-    {
-        public MappingProfile() => CreateProjection<Department, Command>();
-    }
-
-    public class QueryHandler : IRequestHandler<Query, Command>
-    {
-        private readonly SchoolContext _db;
-        private readonly IConfigurationProvider _configuration;
-
-        public QueryHandler(SchoolContext db, IConfigurationProvider configuration)
+        if (Data == null)
         {
-            _db = db;
-            _configuration = configuration;
+            return NotFound();
         }
-
-        public async Task<Command> Handle(Query message, CancellationToken token) => await _db
-            .Departments
-            .Where(d => d.Id == message.Id)
-            .ProjectTo<Command>(_configuration)
-            .SingleOrDefaultAsync(token);
+        return Page();
     }
 
-    public class CommandHandler : IRequestHandler<Command>
+    public async Task<IActionResult> OnPostAsync(int id)
     {
-        private readonly SchoolContext _db;
-
-        public CommandHandler(SchoolContext db) => _db = db;
-
-        public async Task Handle(Command message, CancellationToken token)
+        try
         {
-            var department = await _db.Departments.FindAsync(message.Id);
-
-            _db.Departments.Remove(department);
+            await _departmentService.DeleteDepartmentAsync(id);
         }
+        catch (DbUpdateConcurrencyException)
+        {
+             // Log or handle
+             return RedirectToPage("./Index");
+        }
+        
+        return RedirectToPage("./Index");
     }
 }

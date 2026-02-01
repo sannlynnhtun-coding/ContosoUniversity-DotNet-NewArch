@@ -1,58 +1,51 @@
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
-using ContosoUniversity.Data;
-using ContosoUniversity.Models;
-using MediatR;
+using ContosoUniversity.Domain.Features.Courses;
+using ContosoUniversity.Domain.Features.Departments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ContosoUniversity.Pages.Courses;
 
 public class Create : PageModel
 {
-    private readonly IMediator _mediator;
+    private readonly ICourseService _courseService;
+    private readonly IDepartmentService _departmentService;
 
-    public Create(IMediator mediator) => _mediator = mediator;
+    public Create(ICourseService courseService, IDepartmentService departmentService)
+    {
+        _courseService = courseService;
+        _departmentService = departmentService;
+    }
+
+    public SelectList Departments { get; set; }
 
     [BindProperty]
-    public Command Data { get; set; }
+    public CourseEditDto Data { get; set; }
+
+    public async Task<IActionResult> OnGetAsync()
+    {
+        await PopulateDepartmentsDropDownList();
+        return Page();
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        await _mediator.Send(Data);
-
-        return this.RedirectToPageJson("Index");
-    }
-
-    public record Command : IRequest<int>
-    {
-        public int Number { get; init; }
-        public string Title { get; init; }
-        public int Credits { get; init; }
-        public Department Department { get; init; }
-    }
-
-    public class CommandHandler : IRequestHandler<Command, int>
-    {
-        private readonly SchoolContext _db;
-
-        public CommandHandler(SchoolContext db) => _db = db;
-
-        public async Task<int> Handle(Command message, CancellationToken token)
+        if (!ModelState.IsValid)
         {
-            var course = new Course
-            {
-                Id = message.Number,
-                Credits = message.Credits,
-                Department = message.Department,
-                Title = message.Title
-            };
-
-            await _db.Courses.AddAsync(course, token);
-
-            await _db.SaveChangesAsync(token);
-
-            return course.Id;
+            await PopulateDepartmentsDropDownList();
+            return Page();
         }
+
+        await _courseService.CreateCourseAsync(Data);
+
+        return RedirectToPage("./Index");
+    }
+
+    private async Task PopulateDepartmentsDropDownList(object selectedDepartment = null)
+    {
+        var departments = await _departmentService.GetDepartmentNamesAsync();
+        Departments = new SelectList(departments, "Id", "Name", selectedDepartment);
     }
 }
