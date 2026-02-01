@@ -1,43 +1,120 @@
 ﻿@page
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Dashboard";
 }
 
-<div class="row mb-auto">
-    <div class="col-md-4">
-        <div class="row no-gutters border mb-4">
-            <div class="col p-4 mb-4 ">
-                <p class="card-text">
-                    Contoso University is a sample application that
-                    demonstrates how to use Entity Framework Core in an
-                    ASP.NET Core Razor Pages web app.
-                </p>
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                Welcome to Contoso University
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                A modern administrative console for managing university resources.
+            </p>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <button type="button" class="btn btn-primary">
+                View Reports
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Card 1 -->
+    <div class="bg-white overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow duration-200 border border-gray-100">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-md bg-premium-500 text-white flex items-center justify-center">
+                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                         </svg>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="truncate text-sm font-medium text-gray-500">Total Courses</dt>
+                        <dd>
+                            <div class="text-lg font-medium text-gray-900">7</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <div class="text-sm">
+                <a asp-page="/Courses/Index" class="font-medium text-premium-700 hover:text-premium-900">View all courses</a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="row no-gutters border mb-4">
-            <div class="col p-4 d-flex flex-column position-static">
-                <p class="card-text mb-auto">
-                    You can build the application by following the steps in a series of tutorials.
-                </p>
-                <p>
-                    <a href="https://docs.microsoft.com/aspnet/core/data/ef-rp/intro" class="stretched-link">See the tutorial</a>
-                </p>
+
+    <!-- Card 2 -->
+    <div class="bg-white overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow duration-200 border border-gray-100">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-md bg-premium-500 text-white flex items-center justify-center">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="truncate text-sm font-medium text-gray-500">Total Students</dt>
+                        <dd>
+                            <div class="text-lg font-medium text-gray-900">8</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <div class="text-sm">
+                <a asp-page="/Students/Index" class="font-medium text-premium-700 hover:text-premium-900">View all students</a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="row no-gutters border mb-4">
-            <div class="col p-4 d-flex flex-column">
-                <p class="card-text mb-auto">
-                    You can download the completed project from GitHub.
-                </p>
-                <p>
-                    <a href="https://github.com/aspnet/AspNetCore.Docs/tree/master/aspnetcore/data/ef-rp/intro/samples" class="stretched-link">See project source code</a>
-                </p>
+
+    <!-- Card 3 -->
+    <div class="bg-white overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow duration-200 border border-gray-100">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-md bg-premium-500 text-white flex items-center justify-center">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="truncate text-sm font-medium text-gray-500">Instructors</dt>
+                        <dd>
+                            <div class="text-lg font-medium text-gray-900">5</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <div class="text-sm">
+                <a asp-page="/Instructors/Index" class="font-medium text-premium-700 hover:text-premium-900">View instructors</a>
             </div>
         </div>
     </div>
 </div>
 
+<div class="mt-8 bg-white shadow rounded-lg p-6 border border-gray-100">
+    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Quick Actions</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="https://docs.microsoft.com/aspnet/core/data/ef-rp/intro" class="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+            <span class="text-premium-600 mr-2">📚</span> See tutorial
+        </a>
+        <a href="https://github.com/aspnet/AspNetCore.Docs/tree/master/aspnetcore/data/ef-rp/intro/samples" class="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+            <span class="text-gray-900 mr-2">🔍</span> Source Code
+        </a>
+    </div>
+</div>

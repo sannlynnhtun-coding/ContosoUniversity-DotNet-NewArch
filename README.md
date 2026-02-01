@@ -42,3 +42,5 @@ dotnet ef migrations script --project ContosoUniversity.Domain --startup-project
 ```bash
 sqlcmd -S . -U sa -P sasa@123 -d ContosoUniversity -i "new data.sql"
 ```
+
+npx tailwindcss -i ./wwwroot/css/app.css -o ./wwwroot/css/site.css --minify 

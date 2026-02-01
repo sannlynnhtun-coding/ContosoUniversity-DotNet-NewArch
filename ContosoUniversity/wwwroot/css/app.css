@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold text-slate-800 mb-4;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
+
+  h4 {
+    @apply text-lg;
+  }
+
+  a {
+    @apply text-premium-600 hover:text-premium-800 transition-colors;
+  }
+
+  p {
+    @apply mb-4 leading-relaxed text-gray-600;
+  }
+}
+
+@layer components {
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200 cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply text-white bg-premium-600 hover:bg-premium-700 focus:ring-premium-500;
+  }
+
+  .btn-danger {
+    @apply text-white bg-red-600 hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .btn-default,
+  .btn-secondary {
+    @apply text-gray-700 bg-white border-gray-300 hover:bg-gray-50 focus:ring-premium-500;
+  }
+
+  /* Permitting disabled state */
+  .btn:disabled,
+  .btn.disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Forms */
+  .form-control {
+    @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-premium-500 focus:ring-premium-500 sm:text-sm;
+  }
+
+  .form-group {
+    @apply mb-4;
+  }
+
+  .control-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .text-danger {
+    @apply text-red-600 text-sm mt-1;
+  }
+
+  /* Tables */
+  .table {
+    @apply min-w-full divide-y divide-gray-200 shadow overflow-hidden border-b border-gray-200 sm:rounded-lg mb-6;
+  }
+
+  .table thead {
+    @apply bg-gray-50;
+  }
+
+  .table th {
+    @apply px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider;
+  }
+
+  .table tbody {
+    @apply bg-white divide-y divide-gray-200;
+  }
+
+  .table tr:hover {
+    @apply bg-gray-50;
+  }
+
+  .table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-700;
+  }
+
+  /* Dl/Dt/Dd (Details lists) */
+  .dl-horizontal {
+    @apply grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100;
+  }
+
+  .dl-horizontal dt {
+    @apply font-medium text-gray-500;
+  }
+
+  .dl-horizontal dd {
+    @apply text-gray-900 sm:col-span-2;
+  }
+
+  /* Pagination */
+  .pagination {
+    @apply flex items-center space-x-1;
+  }
+}
+
+@layer utilities {
+
+  /* Bootstrap Compat Helpers (Minimal) */
+  .row {
+    @apply flex flex-wrap -mx-4;
+  }
+
+  .col-md-4 {
+    @apply w-full md:w-1/3 px-4;
+  }
+
+  .col-md-6 {
+    @apply w-full md:w-1/2 px-4;
+  }
+
+  .col-md-8 {
+    @apply w-full md:w-2/3 px-4;
+  }
+
+  .col-md-12 {
+    @apply w-full px-4;
+  }
+}
