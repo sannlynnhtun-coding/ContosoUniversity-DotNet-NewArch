@@ -215,6 +215,9 @@ public class SliceFixture : IAsyncLifetime
         }
 
         _connectionString = connectionString;
+        
+        // Use environment variable to override connection string for Minimal APIs
+        Environment.SetEnvironmentVariable("ConnectionStrings__db", connectionString);
 
         _factory = new ContosoTestApplicationFactory
         {

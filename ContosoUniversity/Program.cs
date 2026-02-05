@@ -48,3 +48,5 @@ static void ConfigureApplication(WebApplication app)
 
     app.MapRazorPages();
 }
+
+public partial class Program { }
